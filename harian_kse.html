@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Laporan Harian PT KSE</title>
+    <!-- Library untuk PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7f6; margin: 5px; font-size: 11px; color: #333; }
+        .container { background: white; padding: 12px; width: 980px; margin: auto; border: 1px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.05); position: relative; }
+        
+        /* Header diperbesar sesuai permintaan */
+        .header { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; }
+        .header h2 { margin: 0; font-size: 22px; color: #2c3e50; letter-spacing: 2px; }
+        .header h3 { margin: 3px 0; font-size: 16px; color: #34495e; }
+        .date-picker { margin: 8px 0; text-align: center; font-weight: bold; font-size: 13px; }
+
+        /* Tombol Aksi Kanan Atas */
+        .action-bar { position: absolute; right: 12px; top: 12px; display: flex; gap: 5px; }
+        .btn-main { padding: 5px 12px; font-size: 11px; font-weight: bold; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .btn-save { background: #2980b9; }
+        .btn-pdf { background: #c0392b; }
+        .btn-main:hover { opacity: 0.8; }
+        
+        .flex-container { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+        .table-box { width: 49.3%; margin-bottom: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; background: #fff; }
+        th, td { border: 1px solid #999; padding: 2px 4px; min-height: 18px; vertical-align: middle; word-wrap: break-word; }
+        
+        .title-row { background: #2c3e50; color: white; font-weight: bold; text-align: center; font-size: 9px; text-transform: uppercase; }
+        .sub-title-row { background: #f2f2f2; font-weight: bold; text-align: center; color: #333; font-size: 9px; }
+        
+        .input-text { width: 100%; border: none; font-size: 11px; outline: none; background: transparent; font-family: inherit; resize: none; overflow: hidden; display: block; }
+        .input-num { width: 100%; border: none; font-size: 11px; outline: none; background: transparent; font-family: inherit; text-align: right; }
+        
+        .total-row { background: #f9f9f9; font-weight: bold; }
+        .highlight-blue { background: #eef7ff; font-weight: bold; }
+        .highlight-green { background: #eaffed !important; font-weight: bold; }
+        
+        .btn-action { cursor: pointer; border: none; border-radius: 2px; padding: 0px 3px; font-size: 9px; color: white; }
+        .btn-plus { background: #27ae60; }
+        .btn-minus { background: #e74c3c; padding: 0 5px; }
+        
+        /* Note Box diperlebar mengikuti lebar kolom */
+        .note-box { width: 100%; height: 165px; border: 1px solid #999; padding: 6px; box-sizing: border-box; resize: none; background: #fffef0; font-size: 11px; line-height: 1.4; }
+
+        .col-desc { width: 35%; }
+        .col-amt { width: 15%; }
+
+        @media print { 
+            .btn-action, .action-bar { display: none !important; } 
+            body { background: white; margin: 0; } 
+            .container { width: 100%; border: none; box-shadow: none; } 
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="report-content">
+    <!-- Action Bar -->
+    <div class="action-bar">
+        <button class="btn-main btn-save" onclick="saveData()">SAVE</button>
+        <button class="btn-main btn-pdf" onclick="downloadPDF()">DOWNLOAD PDF</button>
+    </div>
+
+    <div class="header">
+        <h2>LAPORAN HARIAN</h2>
+        <h3>PT. KHATULISTIWA SINAR ENERGI</h3>
+        <div class="date-picker">
+            TANGGAL: <input type="date" id="tgl" value="2026-05-04" style="border-bottom: 1px solid #999; width: 130px; font-weight: bold; text-align: center; font-size: 14px; border-top:none; border-left:none; border-right:none; outline:none;">
+        </div>
+    </div>
+
+    <div class="flex-container">
+        <!-- Tabel Kas Awal -->
+        <div class="table-box">
+            <table>
+                <tr class="title-row"><td colspan="2">SALDO / KAS AWAL</td></tr>
+                <tbody id="kas-awal">
+                    <tr><td width="65%">KAS MANDIRI</td><td><input type="text" id="awal-mandiri" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                    <tr><td>KAS BRI</td><td><input type="text" id="awal-bri" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                    <tr><td>KAS BCA</td><td><input type="text" id="awal-bca" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                    <tr><td>MANDIRI GIRO</td><td><input type="text" id="awal-giromandiri" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                    <tr><td>BRI GIRO</td><td><input type="text" id="awal-girobri" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                    <tr><td>BCA GIRO</td><td><input type="text" id="awal-girobca" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                    <tr><td>KAS KECIL</td><td><input type="text" id="awal-kaskecil" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                    <tr class="total-row highlight-blue"><td>TOTAL KAS AWAL</td><td id="total-kas-awal" style="text-align: right;">0</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <!-- Note Box Selebar Kas Awal -->
+        <div class="table-box">
+            <label style="font-weight: bold; font-size: 11px; display: block; margin-bottom: 2px;">NOTE / CATATAN :</label>
+            <textarea id="main-note" class="note-box" placeholder="Ketik catatan di sini..."></textarea>
+        </div>
+    </div>
+
+    <div class="flex-container" style="margin-top: 5px;">
+        <script>
+            const sections = [
+                { id: "mandiri", t: "MANDIRI" }, { id: "giromandiri", t: "GIRO MANDIRI" },
+                { id: "bri", t: "BRI" }, { id: "girobri", t: "GIRO BRI" },
+                { id: "bca", t: "BCA" }, { id: "girobca", t: "GIRO BCA" },
+                { id: "kaskecil", t: "KAS KECIL" }
+            ];
+            sections.forEach(s => {
+                document.write(`
+                <div class="table-box">
+                    <table>
+                        <tr class="title-row">
+                            <td colspan="4" style="position:relative;">
+                                ${s.t} 
+                                <button class="btn-action btn-plus" style="position:absolute; right:2px; top:1px;" onclick="addRow('${s.id}')">+</button>
+                            </td>
+                        </tr>
+                        <tr class="sub-title-row">
+                            <td class="col-desc">MASUK</td><td class="col-amt">RP</td>
+                            <td class="col-desc">KELUAR</td><td class="col-amt">RP</td>
+                        </tr>
+                        <tbody id="body-${s.id}">
+                            <tr>
+                                <td><textarea class="input-text" rows="1" oninput="autoHeight(this)"></textarea></td>
+                                <td><input type="text" class="input-num in-${s.id}" value="0" oninput="formatAndStyle(this); updateSemua()"></td>
+                                <td><textarea class="input-text" rows="1" oninput="autoHeight(this)"></textarea></td>
+                                <td><input type="text" class="input-num out-${s.id}" value="0" oninput="formatAndStyle(this); updateSemua()"></td>
+                            </tr>
+                        </tbody>
+                        <tr class="total-row">
+                            <td>TOTAL</td><td id="tot-in-${s.id}" style="text-align: right;">0</td>
+                            <td>TOTAL</td><td id="tot-out-${s.id}" style="text-align: right;">0</td>
+                        </tr>
+                    </table>
+                </div>`);
+            });
+        </script>
+
+        <!-- KAS AKHIR AUTO -->
+        <div class="table-box">
+            <table>
+                <tr class="title-row"><td colspan="2" style="background: #d35400;">SALDO / KAS AKHIR (AUTO)</td></tr>
+                <tbody>
+                    <tr><td width="65%">KAS MANDIRI</td><td id="akhir-mandiri" style="text-align:right">0</td></tr>
+                    <tr><td>KAS BRI</td><td id="akhir-bri" style="text-align:right">0</td></tr>
+                    <tr><td>KAS BCA</td><td id="akhir-bca" style="text-align:right">0</td></tr>
+                    <tr><td>MANDIRI GIRO</td><td id="akhir-giromandiri" style="text-align:right">0</td></tr>
+                    <tr><td>BRI GIRO</td><td id="akhir-girobri" style="text-align:right">0</td></tr>
+                    <tr><td>BCA GIRO</td><td id="akhir-girobca" style="text-align:right">0</td></tr>
+                    <tr><td>KAS KECIL</td><td id="akhir-kaskecil" style="text-align:right">0</td></tr>
+                    <tr class="total-row highlight-blue"><td>TOTAL KAS AKHIR</td><td id="total-kas-akhir" style="text-align: right;">0</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="flex-container" style="margin-top: 5px; border-top: 2px solid #2c3e50; padding-top: 5px;">
+        <!-- DO Section -->
+        <div class="table-box">
+            <table>
+                <tr class="title-row"><td colspan="2" style="background: #8e44ad;">DELIVERY ORDER (DO)</td></tr>
+                <tr><td width="65%">AWAL DO</td><td><input type="text" id="awal-do" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                <tr><td>SETORAN DO HARI INI</td><td><input type="text" id="setoran-do" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                <tr class="total-row highlight-blue"><td>AKHIR DO (AWL+STR-PENJ)</td><td id="akhir-do" style="text-align:right">0</td></tr>
+            </table>
+        </div>
+
+        <!-- Sales Section -->
+        <div class="table-box">
+            <table>
+                <tr class="title-row">
+                    <td colspan="2" style="background: #27ae60; position:relative;">
+                        RINGKASAN PENJUALAN 
+                        <button class="btn-action btn-plus" style="position:absolute; right:2px; top:1px;" onclick="addRowSales()">+</button>
+                    </td>
+                </tr>
+                <tbody id="body-sales">
+                    <tr><td width="65%"><textarea class="input-text" rows="1" oninput="autoHeight(this)">BTM (HARI INI)</textarea></td><td><input type="text" class="input-num sales-today" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                    <tr><td><textarea class="input-text" rows="1" oninput="autoHeight(this)">BAP (HARI INI)</textarea></td><td><input type="text" class="input-num sales-today" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                </tbody>
+                <tr class="total-row"><td>TOTAL PENJUALAN HARI INI</td><td id="total-sales-today" style="text-align: right;">0</td></tr>
+                <tr><td>PENJUALAN KEMARIN</td><td><input type="text" id="sales-yesterday" class="input-num" value="0" oninput="formatAndStyle(this); updateSemua()"></td></tr>
+                <tr class="total-row highlight-green"><td>GRAND TOTAL (KEMARIN + HARI INI)</td><td id="grand-total-sales" style="text-align: right;">0</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Fungsi Format Angka
+    function formatNumber(n) {
+        return n.replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function parseNumber(s) {
+        return parseFloat(s.toString().replace(/\./g, "")) || 0;
+    }
+
+    function formatAndStyle(el) {
+        let val = el.value.replace(/\./g, "");
+        el.value = formatNumber(val);
+    }
+
+    function autoHeight(el) {
+        el.style.height = "1px";
+        el.style.height = (el.scrollHeight) + "px";
+    }
+
+    function addRow(id) {
+        const tbody = document.getElementById(`body-${id}`);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><textarea class="input-text" rows="1" oninput="autoHeight(this)"></textarea></td>
+            <td><input type="text" class="input-num in-${id}" value="0" oninput="formatAndStyle(this); updateSemua()"></td>
+            <td><textarea class="input-text" rows="1" oninput="autoHeight(this)"></textarea></td>
+            <td style="position:relative;">
+                <input type="text" class="input-num out-${id}" value="0" oninput="formatAndStyle(this); updateSemua()">
+                <button class="btn-action btn-minus" style="position:absolute; right:-22px; top:2px;" onclick="this.parentElement.parentElement.remove(); updateSemua();">×</button>
+            </td>`;
+        tbody.appendChild(tr);
+    }
+
+    function addRowSales() {
+        const tbody = document.getElementById(`body-sales`);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><textarea class="input-text" rows="1" oninput="autoHeight(this)" placeholder="Barang..."></textarea></td>
+            <td style="position:relative;">
+                <input type="text" class="input-num sales-today" value="0" oninput="formatAndStyle(this); updateSemua()">
+                <button class="btn-action btn-minus" style="position:absolute; right:-22px; top:2px;" onclick="this.parentElement.parentElement.remove(); updateSemua();">×</button>
+            </td>`;
+        tbody.appendChild(tr);
+    }
+
+    function fN(num) { return num.toLocaleString('id-ID'); }
+
+    function updateSemua() {
+        let totalAwal = 0, totalAkhir = 0, totalTodaySales = 0;
+        const ids = ['mandiri', 'bri', 'bca', 'giromandiri', 'girobri', 'girobca', 'kaskecil'];
+
+        ids.forEach(id => {
+            let inVal = 0, outVal = 0;
+            document.querySelectorAll(`.in-${id}`).forEach(el => inVal += parseNumber(el.value));
+            document.querySelectorAll(`.out-${id}`).forEach(el => outVal += parseNumber(el.value));
+            document.getElementById(`tot-in-${id}`).innerText = fN(inVal);
+            document.getElementById(`tot-out-${id}`).innerText = fN(outVal);
+
+            let awal = parseNumber(document.getElementById(`awal-${id}`).value);
+            totalAwal += awal;
+            let akhir = awal + inVal - outVal;
+            document.getElementById(`akhir-${id}`).innerText = fN(akhir);
+            totalAkhir += akhir;
+        });
+
+        document.getElementById('total-kas-awal').innerText = fN(totalAwal);
+        document.getElementById('total-kas-akhir').innerText = fN(totalAkhir);
+
+        document.querySelectorAll('.sales-today').forEach(el => totalTodaySales += parseNumber(el.value));
+        let yesterday = parseNumber(document.getElementById('sales-yesterday').value);
+        document.getElementById('total-sales-today').innerText = fN(totalTodaySales);
+        document.getElementById('grand-total-sales').innerText = fN(totalTodaySales + yesterday);
+
+        let awalDO = parseNumber(document.getElementById('awal-do').value);
+        let setoranDO = parseNumber(document.getElementById('setoran-do').value);
+        document.getElementById('akhir-do').innerText = fN(awalDO + setoranDO - totalTodaySales);
+    }
+
+    // Fungsi Save (Simpan ke Browser)
+    function saveData() {
+        alert("Data laporan telah disimpan secara lokal di browser ini.");
+        // Logika simpan permanen bisa dikembangkan ke Database/LocalStorage
+    }
+
+    // Fungsi Download PDF
+    function downloadPDF() {
+        const element = document.getElementById('report-content');
+        const options = {
+            margin: 0.2,
+            filename: 'Laporan_Harian_PT_KSE_' + document.getElementById('tgl').value + '.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+        };
+        html2pdf().set(options).from(element).save();
+    }
+
+    window.onload = () => {
+        updateSemua();
+        document.querySelectorAll('textarea').forEach(autoHeight);
+    };
+</script>
+</body>
+</html>
