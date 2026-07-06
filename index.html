@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan Harian</title>
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -17,6 +15,7 @@
             --emas-light: #f59e0b;
             --bg-canvas: #f1f5f9;
             --text-light: #f8fafc;
+            --merah-logout: #dc2626;
         }
 
         * {
@@ -44,7 +43,7 @@
             justify-content: center;
             align-items: center;
             z-index: 9999;
-            transition: 0.5s;
+            transition: opacity 0.5s, visibility 0.5s;
         }
 
         .login-box {
@@ -101,11 +100,11 @@
             background: var(--hijau-tua);
         }
 
-        /* --- STYLES DASHBOARD (HIDDEN BY DEFAULT) --- */
+        /* --- STYLES DASHBOARD --- */
         #mainDashboard {
             opacity: 0;
             visibility: hidden;
-            transition: 0.5s;
+            transition: opacity 0.5s, visibility 0.5s;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -113,15 +112,17 @@
 
         header {
             background: linear-gradient(135deg, var(--hijau-tua) 0%, var(--biru-donker) 100%);
-            padding: 2rem 5%;
+            padding: 1.5rem 5%;
             color: var(--text-light);
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            text-align: center;
             border-bottom: 4px solid var(--emas);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         header h1 {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             letter-spacing: 1px;
             font-weight: 700;
             text-transform: uppercase;
@@ -131,21 +132,42 @@
             color: var(--emas);
         }
 
+        /* Tombol Logout */
+        .btn-logout {
+            background: transparent;
+            color: var(--text-light);
+            border: 2px solid var(--text-light);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-logout:hover {
+            background: var(--merah-logout);
+            border-color: var(--merah-logout);
+        }
+
         main {
             flex: 1;
-            padding: 4rem 5%;
-            max-width: 1200px;
+            padding: 2.5rem 2%;
+            max-width: 1400px;
             margin: 0 auto;
             width: 100%;
         }
 
         .section-title {
             text-align: center;
-            margin-bottom: 3.5rem;
+            margin-bottom: 2.5rem;
         }
 
         .section-title h2 {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             color: var(--biru-donker);
             position: relative;
             display: inline-block;
@@ -162,100 +184,121 @@
             background: var(--emas);
         }
 
+        /* Grid Menjadi 1 Baris Horizontal */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 2.5rem;
+            grid-template-columns: repeat(4, 1fr); /* Dipaksa jadi 4 kolom dalam 1 baris */
+            gap: 1.2rem;
         }
 
+        /* Modifikasi Kotak Lebih Kecil */
         .menu-card {
             background: #ffffff;
-            border-radius: 16px;
+            border-radius: 12px;
             text-decoration: none;
             color: inherit;
             display: flex;
             flex-direction: column;
-            padding: 3rem 2rem;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 1.5rem 1rem;
+            transition: all 0.3s ease;
             border: 1px solid #e2e8f0;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             position: relative;
             overflow: hidden;
             align-items: center;
             text-align: center;
+            justify-content: space-between; /* Menyeimbangkan posisi isi konten */
+            min-height: 240px; 
         }
 
         .menu-card:hover {
-            transform: translateY(-12px);
-            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15);
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px -10px rgba(15, 23, 42, 0.15);
             border-color: var(--emas);
         }
 
+        /* Ukuran Icon Diperkecil */
         .icon-wrapper {
-            width: 85px;
-            height: 85px;
+            width: 55px;
+            height: 55px;
             background-color: var(--biru-donker);
             color: var(--emas);
-            border-radius: 20px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 1.5rem;
-            font-size: 2.2rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
             transition: 0.3s;
             border: 2px solid transparent;
         }
 
         .menu-card:hover .icon-wrapper {
             background-color: var(--hijau-tua);
-            transform: rotate(10deg);
+            transform: rotate(5deg);
             border-color: var(--emas);
         }
 
         .menu-card h3 {
-            font-size: 1.2rem;
+            font-size: 0.95rem;
             font-weight: 700;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             color: var(--biru-donker);
+            line-height: 1.3;
         }
 
         .menu-card p {
-            font-size: 0.95rem;
+            font-size: 0.8rem;
             color: #64748b;
-            line-height: 1.6;
+            line-height: 1.4;
+            flex-grow: 1; /* Biar text deskripsi mengisi ruang kosong */
+            display: flex;
+            align-items: center;
         }
 
+        /* Ukuran Badge Diperkecil */
         .badge {
             background: #f1f5f9;
             color: var(--hijau-tua);
-            padding: 5px 12px;
+            padding: 4px 10px;
             border-radius: 20px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 700;
-            margin-top: 1.5rem;
+            margin-top: 1rem;
             border: 1px solid #e2e8f0;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         footer {
             background: var(--biru-donker);
             color: #94a3b8;
-            padding: 1.5rem;
+            padding: 1.2rem;
             text-align: center;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             border-top: 5px solid var(--emas);
         }
 
-        @media (max-width: 768px) {
+        /* Responsive untuk tablet dan mobile agar tidak merusak tampilan */
+        @media (max-width: 1024px) {
             .dashboard-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr); /* 2 baris x 2 kolom di tablet */
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr; /* 1 kolom di HP */
+            }
+            header {
+                flex-direction: column;
+                gap: 10px;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- Login Overlay -->
     <div id="loginOverlay">
         <div class="login-box">
             <i class="fa-solid fa-shield-halved"></i>
@@ -266,10 +309,10 @@
         </div>
     </div>
 
-    <!-- Main Dashboard Content -->
     <div id="mainDashboard">
         <header>
             <h1>Management <span>Smart system</span></h1>
+            <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
         </header>
 
         <main>
@@ -282,17 +325,17 @@
                     <div class="icon-wrapper">
                         <i class="fa-solid fa-industry"></i>
                     </div>
-                    <h3>Laporan Estmasi Laba</h3>
-                    <p>Estimasi Pembelian dan penjualan BBm</p>
-                    <span class="badge">LABA KOTORN</span>
+                    <h3>Laporan Estimasi Laba</h3>
+                    <p>Pembelian dan penjualan BBM</p>
+                    <span class="badge">LABA KOTOR</span>
                 </a>
 
-                <a href="pengisian.html" class="menu-card">
+                <a href="bbm_unit.html" class="menu-card">
                     <div class="icon-wrapper">
                         <i class="fa-solid fa-gas-pump"></i>
                     </div>
                     <h3>Monitoring Pengisian BBM</h3>
-                    <p>Rekapitulasi Pengisian BBm Per Unit.</p>
+                    <p>Rekapitulasi Pengisian BBM Per Unit.</p>
                     <span class="badge">PENGISIAN BBM</span>
                 </a>
 
@@ -300,7 +343,7 @@
                     <div class="icon-wrapper">
                         <i class="fa-solid fa-truck-fast"></i>
                     </div>
-                    <h3>Estimasi Biaya Angkutan BBM Petro</h3>
+                    <h3>Estimasi Angkutan BBM Petro</h3>
                     <p>Monitoring Angkutan Petro.</p>
                     <span class="badge">PAN TRANSPORT</span>
                 </a>
@@ -309,7 +352,7 @@
                     <div class="icon-wrapper">
                         <i class="fa-solid fa-truck-fast"></i>
                     </div>
-                    <h3>Estimasi Biaya Angkutan BBM </h3>
+                    <h3>Estimasi OAT BBM</h3>
                     <p>Monitoring Angkutan Unit sendiri</p>
                     <span class="badge">OAT INTERNAL</span>
                 </a>
@@ -322,8 +365,20 @@
     </div>
 
     <script>
-        // Set password di sini (Contoh: admin123)
         const MASTER_PASS = "admin123";
+
+        // Cek status saat halaman pertama kali dibuka / kembali (back)
+        window.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('isLoggedIn') === 'true') {
+                const overlay = document.getElementById('loginOverlay');
+                const dashboard = document.getElementById('mainDashboard');
+                
+                overlay.style.display = 'none';
+                dashboard.style.visibility = 'visible';
+                dashboard.style.opacity = '1';
+                document.body.style.overflow = 'auto';
+            }
+        });
 
         function checkPassword() {
             const input = document.getElementById('passInput').value;
@@ -332,7 +387,11 @@
             const error = document.getElementById('errorMsg');
 
             if (input === MASTER_PASS) {
+                // Simpan status login di browser
+                localStorage.setItem('isLoggedIn', 'true');
+                
                 overlay.style.opacity = '0';
+                overlay.style.visibility = 'hidden';
                 setTimeout(() => {
                     overlay.style.display = 'none';
                     dashboard.style.visibility = 'visible';
@@ -343,6 +402,28 @@
                 error.style.display = 'block';
                 document.getElementById('passInput').value = '';
             }
+        }
+
+        // Fungsi Logout Baru
+        function logout() {
+            // Hapus status login di browser
+            localStorage.removeItem('isLoggedIn');
+            
+            const overlay = document.getElementById('loginOverlay');
+            const dashboard = document.getElementById('mainDashboard');
+            
+            dashboard.style.opacity = '0';
+            dashboard.style.visibility = 'hidden';
+            
+            setTimeout(() => {
+                overlay.style.display = 'flex';
+                overlay.offsetHeight; 
+                overlay.style.opacity = '1';
+                overlay.style.visibility = 'visible';
+                document.body.style.overflow = 'hidden';
+                document.getElementById('passInput').value = '';
+                document.getElementById('errorMsg').style.display = 'none';
+            }, 500);
         }
 
         function handleKeyPress(e) {
