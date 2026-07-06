@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hitungan laba Kotor</title>
+    <title>Hitungan Laba Kotor</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
@@ -35,11 +35,9 @@
             border-radius: 3px;
             border: 1px solid #ccc;
         }
-        .btn-tambah { background-color: #4CAF50; color: white; border: none; }
         .btn-simpan { background-color: #0284c7; color: white; border: none; }
         .btn-excel { background-color: #16a34a; color: white; border: none; }
         .btn-refresh { background-color: #4b5563; color: white; border: none; }
-        .btn-hapus { background-color: #f44336; color: white; border: none; padding: 2px 6px; }
          
         table {
             width: 100%;
@@ -118,7 +116,6 @@
     <p>*Data ditarik dan disinkronkan otomatis dengan database Supabase.</p>
 
     <div class="btn-container">
-        <button class="btn-tambah" onclick="tambahBaris()">+ Tambah Baris </button>
         <button class="btn-simpan" onclick="simpanKeLabaKotor()">Simpan</button>
         <button class="btn-excel" onclick="exportKeExcel()">Download XLSX</button>
         <button class="btn-refresh" onclick="ambilDataSupabase()">🔄 Refresh </button>
@@ -148,7 +145,6 @@
                 <th width="4%">TOT BY LN</th>
                 <th width="4%">KB PPN</th>
                 <th width="6%">LABA KOTOR</th>
-                <th width="3%">AKSI</th>
             </tr>
         </thead>
         <tbody id="bodyTabel">
@@ -170,7 +166,6 @@
                 <td><input type="text" id="gtTotalByLain" readonly></td>
                 <td><input type="text" id="gtKbPpn" readonly></td>
                 <td><input type="text" id="gtLabaKotor" readonly style="color: green; font-weight: bold;"></td>
-                <td></td>
             </tr>
         </tfoot>
     </table>
@@ -184,6 +179,17 @@
         const supabaseBaru = supabase.createClient(SB_URL, SB_KEY);
 
         const DAFTAR_BG_WARNA = ['#ffffff', '#e2eeff', '#fae4ff', '#ffeeda', '#e3faf0', '#fff0f0'];
+
+        function bersihkanAngka(str) {
+            if (str === null || str === undefined || str === '') return 0;
+            let clean = str.toString().replace(/[^0-9]/g, '');
+            return parseFloat(clean) || 0;
+        }
+
+        function keRibuan(angka) {
+            let angkaBulat = Math.round(angka);
+            return angkaBulat.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
 
         async function ambilDataSupabase() {
             try {
@@ -219,7 +225,7 @@
                 tableBody.innerHTML = ''; 
 
                 if (dataPengiriman.length === 0 && (!dataLabaKotor || dataLabaKotor.length === 0)) {
-                    tableBody.innerHTML = '<tr><td colspan="22">Data kosong untuk bulan berjalan.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="21">Data kosong untuk bulan berjalan.</td></tr>';
                     hitungGrandTotal();
                     return;
                 }
@@ -236,45 +242,49 @@
                     const keyMatch = `${item.tanggal}_${item.delivery_to}_${item.jumlah_keluar}`;
                     const savedData = mapLabaKotor[keyMatch] || {};
 
-                    let nilaiOat = '0';
-                    if (savedData.oat !== undefined) {
-                        nilaiOat = savedData.oat.toString();
-                    }
+                    let nilaiOat = savedData.oat !== undefined ? Math.round(savedData.oat).toString() : '0';
+                    let pbbkbValue = savedData.beli_pbbkb !== undefined ? Math.round(savedData.beli_pbbkb) : '';
+                    let pphValue = savedData.beli_pph !== undefined ? Math.round(savedData.beli_pph) : '';
+
+                    let pbbkbAttr = (savedData.beli_pbbkb !== undefined && Math.round(savedData.beli_pbbkb) === 0) ? 'data-user-edited="true"' : '';
+                    let pphAttr = (savedData.beli_pph !== undefined && Math.round(savedData.beli_pph) === 0) ? 'data-user-edited="true"' : '';
 
                     let rowHtml = `
                         <tr data-id="${savedData.id || ''}">
                             <td><input type="text" class="tanggal" value="${item.tanggal || ''}" onchange="warnaiUlangBaris()"></td>
-                            <td><input type="text" class="po_qty" value="${savedData.po_qty !== undefined ? savedData.po_qty : '0'}" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="po_qty" value="${savedData.po_qty !== undefined ? keRibuan(savedData.po_qty) : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="no_so_do" value="${savedData.no_so_do || '-'}"></td>
                             <td><input type="text" class="tujuan" value="${item.delivery_to || ''}"></td>
-                            <td><input type="text" class="qty" value="${item.jumlah_keluar || 0}" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="qty" value="${keRibuan(item.jumlah_keluar || 0)}" oninput="formatDanHitung(this)"></td>
                             
-                            <td><input type="text" class="beli_hd" value="${savedData.beli_hd !== undefined ? savedData.beli_hd : '0'}" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="beli_hd" value="${savedData.beli_hd !== undefined ? keRibuan(savedData.beli_hd) : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="beli_ppn" readonly></td>
-                            <td><input type="text" class="beli_pbbkb" value="${savedData.beli_pbbkb !== undefined ? savedData.beli_pbbkb : '0'}" oninput="formatDanHitung(this)" ${savedData.beli_pbbkb ? 'data-user-edited="true"' : ''}></td>
-                            <td><input type="text" class="beli_pph" value="${savedData.beli_pph !== undefined ? savedData.beli_pph : '0'}" oninput="formatDanHitung(this)" ${savedData.beli_pph ? 'data-user-edited="true"' : ''}></td>
+                            <td><input type="text" class="beli_pbbkb" value="${pbbkbValue ? keRibuan(pbbkbValue) : ''}" oninput="formatDanHitung(this)" ${pbbkbAttr}></td>
+                            <td><input type="text" class="beli_pph" value="${pphValue ? keRibuan(pphValue) : ''}" oninput="formatDanHitung(this)" ${pphAttr}></td>
                             <td><input type="text" class="harga_beli" readonly></td>
                             <td><input type="text" class="total_beli" readonly></td>
                             
-                            <td><input type="text" class="harga_jual" value="${savedData.harga_jual !== undefined ? savedData.harga_jual : '0'}" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="harga_jual" value="${savedData.harga_jual !== undefined ? keRibuan(savedData.harga_jual) : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="jual_hd" readonly></td>
                             <td><input type="text" class="jual_ppn" readonly></td>
                             <td><input type="text" class="total_jual" readonly></td>
                             
-                            <td><input type="text" class="oat" value="${nilaiOat}" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="oat" value="${nilaiOat ? keRibuan(nilaiOat) : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="total_oat" readonly></td>
-                            <td><input type="text" class="by_lain" value="${savedData.by_lain !== undefined ? savedData.by_lain : '0'}" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="by_lain" value="${savedData.by_lain !== undefined ? keRibuan(savedData.by_lain) : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="total_by_lain" readonly></td>
                             
                             <td><input type="text" class="kb_ppn" readonly></td>
                             <td><input type="text" class="laba_kotor" readonly style="font-weight:bold; color: green;"></td>
-                            <td><button class="btn-hapus" onclick="hapusBaris(this)">X</button></td>
                         </tr>`;
                     tableBody.insertAdjacentHTML('beforeend', rowHtml);
                 });
 
-                const semuaBeliHd = tableBody.querySelectorAll('.beli_hd');
-                semuaBeliHd.forEach(input => hitungLogikaTabel(input));
+                const semuaBaris = tableBody.querySelectorAll('tr');
+                semuaBaris.forEach(row => {
+                    let inputHd = row.querySelector('.beli_hd');
+                    if(inputHd) hitungLogikaTabel(inputHd);
+                });
                 
                 warnaiUlangBaris();
 
@@ -289,7 +299,6 @@
             let warnaIndex = 0;
             let tanggalSebelumnya = "";
 
-            semuisBaris = document.querySelectorAll('#bodyTabel tr');
             semuaBaris.forEach((row) => {
                 let inputTanggal = row.querySelector('.tanggal');
                 if (inputTanggal) {
@@ -308,25 +317,25 @@
             });
         }
 
-        function bersihkanAngka(str) {
-            if (!str) return 0;
-            return parseFloat(str.toString().replace(/\\./g, '').replace(/,/g, '.')) || 0;
-        }
-
-        function keRibuan(angka) {
-            let parts = parseFloat(angka).toFixed(1).replace(/\\.0$/, '').split('.');
-            parts[0] = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, ".");
-            return parts.join(',');
-        }
-
         function formatDanHitung(input) {
-            if (!input.classList.contains('tujuan') && !input.classList.contains('tanggal') && !input.classList.contains('no_so_do')) {
-                let nilaiAsli = input.value.replace(/\\./g, '');
-                if(!isNaN(nilaiAsli) && nilaiAsli !== "") {
-                    let angkaMurni = parseFloat(nilaiAsli);
-                    input.value = angkaMurni.toLocaleString('id-ID'); 
-                }
+            let angkaMurni = bersihkanAngka(input.value);
+            if (input.value !== "") {
+                input.value = keRibuan(angkaMurni);
             }
+            
+            if (input.classList.contains('beli_pbbkb') || input.classList.contains('beli_pph')) {
+                input.dataset.userEdited = "true";
+            }
+
+            if (input.classList.contains('beli_hd')) {
+                let row = input.closest('tr');
+                let pbbkb = row.querySelector('.beli_pbbkb');
+                let pph = row.querySelector('.beli_pph');
+                
+                if (pbbkb && pbbkb.value !== "0") pbbkb.removeAttribute('data-user-edited');
+                if (pph && pph.value !== "0") pph.removeAttribute('data-user-edited');
+            }
+            
             hitungLogikaTabel(input);
         }
 
@@ -358,26 +367,30 @@
             }
 
             let beliPpn = beliHd * 0.11;
+            row.querySelector('.beli_ppn').value = keRibuan(beliPpn);
+
             let inputPbbkb = row.querySelector('.beli_pbbkb');
             let inputPph = row.querySelector('.beli_pph');
             
-            let beliPbbkb = (bersihkanAngka(inputPbbkb.value) === 0 && beliHd > 0 && !inputPbbkb.dataset.userEdited) ? (beliHd * 0.075) : bersihkanAngka(inputPbbkb.value);
-            let beliPph = (bersihkanAngka(inputPph.value) === 0 && beliHd > 0 && !inputPph.dataset.userEdited) ? (beliHd * 0.003) : bersihkanAngka(inputPph.value);
-
-            if(bersihkanAngka(inputPbbkb.value) === 0 && beliHd > 0 && !inputPbbkb.dataset.userEdited) {
-                inputPbbkb.value = keRibuan(beliPbbkb);
-            }
-            if(bersihkanAngka(inputPph.value) === 0 && beliHd > 0 && !inputPph.dataset.userEdited) {
-                inputPph.value = keRibuan(beliPph);
+            let beliPbbkb = 0;
+            if (inputPbbkb.dataset.userEdited === "true") {
+                beliPbbkb = bersihkanAngka(inputPbbkb.value);
+            } else {
+                beliPbbkb = beliHd * 0.075;
+                inputPbbkb.value = Math.round(beliPbbkb) === 0 ? "" : keRibuan(beliPbbkb);
             }
 
-            if (element === inputPbbkb) inputPbbkb.dataset.userEdited = "true";
-            if (element === inputPph) inputPph.dataset.userEdited = "true";
+            let beliPph = 0;
+            if (inputPph.dataset.userEdited === "true") {
+                beliPph = bersihkanAngka(inputPph.value);
+            } else {
+                beliPph = beliHd * 0.003;
+                inputPph.value = Math.round(beliPph) === 0 ? "" : keRibuan(beliPph);
+            }
 
             let hargaBeliSatuan = beliHd + beliPpn + beliPbbkb + beliPph; 
             let totalBeli = hargaBeliSatuan * qtyReal;
 
-            row.querySelector('.beli_ppn').value = keRibuan(beliPpn);
             row.querySelector('.harga_beli').value = keRibuan(hargaBeliSatuan);
             row.querySelector('.total_beli').value = keRibuan(totalBeli);
 
@@ -432,49 +445,6 @@
             document.getElementById('gtTotalByLain').value = keRibuan(gtByLain);
             document.getElementById('gtKbPpn').value = keRibuan(gtKbPpn);
             document.getElementById('gtLabaKotor').value = keRibuan(gtLaba);
-        }
-
-        function tambahBaris() {
-            let tableBody = document.getElementById('bodyTabel');
-            let rows = tableBody.getElementsByTagName('tr');
-            
-            let rowTemplate;
-            if(rows.length > 0) {
-                rowTemplate = rows[0];
-            } else {
-                return;
-            }
-            
-            let newRow = rowTemplate.cloneNode(true);
-            newRow.removeAttribute('data-id'); 
-            
-            let inputs = newRow.getElementsByTagName('input');
-            for (let i = 0; i < inputs.length; i++) {
-                inputs[i].removeAttribute('data-user-edited');
-                if (!inputs[i].readOnly && !inputs[i].classList.contains('tanggal') && !inputs[i].classList.contains('tujuan')) {
-                    if (inputs[i].classList.contains('no_so_do')) {
-                        inputs[i].value = "-";
-                    } else {
-                        inputs[i].value = "0"; 
-                    }
-                }
-                inputs[i].classList.remove('bg-merah');
-            }
-
-            tableBody.appendChild(newRow);
-            hitungLogikaTabel(inputs[4]);
-            warnaiUlangBaris();
-        }
-
-        function hapusBaris(button) {
-            let tableBody = document.getElementById('bodyTabel');
-            if (tableBody.rows.length > 1) {
-                button.closest('tr').remove();
-                warnaiUlangBaris();
-                hitungGrandTotal();
-            } else {
-                alert("Minimal harus menyisakan satu baris!");
-            }
         }
 
         async function simpanKeLabaKotor() {
@@ -539,13 +509,7 @@
                     });
                 }
 
-                promises.push(fetchPromise.then(res => {
-                    if (!res.ok) throw new Error("Gagal memproses baris data");
-                    return true;
-                }).catch(err => {
-                    console.error(err);
-                    return false;
-                }));
+                promises.push(fetchPromise.then(res => res.ok).catch(() => false));
             });
 
             try {
@@ -556,7 +520,7 @@
                 if (gagal > 0) {
                     alert(`Proses selesai. Berhasil menyimpan ${sukses} baris, gagal ${gagal} baris.`);
                 } else {
-                    alert(`Luar biasa! Berhasil menyimpan total ${sukses} baris data ke Supabase.`);
+                    alert(`Berhasil menyimpan total ${sukses} baris data ke Supabase.`);
                 }
             } catch (err) {
                 alert("Terjadi kendala saat menyimpan data.");
@@ -581,8 +545,7 @@
                     if(input) {
                         rowCells.push(input.value);
                     } else {
-                        const button = td.querySelector('button');
-                        rowCells.push(button ? "" : td.innerText);
+                        rowCells.push(td.innerText);
                     }
                 });
                 rowsData.push(rowCells);
