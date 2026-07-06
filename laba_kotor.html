@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Tabel Transaksi Logistik v14 - OAT Manual & Otomatisasi Input Flexibel</title>
+    <title>Hitungan laba Kotor</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
@@ -110,14 +110,14 @@
 </head>
 <body>
 
-    <h2>Sistem Logistik & Transaksi Keuangan (OAT Isi Manual, Otomatisasi Flexibel & Grand Total)</h2>
-    <p>*Data otomatis ditarik dari Supabase. Setiap pergantian tanggal ditandai dengan perubahan warna background baris secara kontras. Kolom OAT diisi manual.</p>
+    <h2>Perhitungan Harga Beli dan Harga Jual</h2>
+    <p>*Data otomatis ditarik dari Supabase.</p>
 
     <div class="btn-container">
-        <button class="btn-tambah" onclick="tambahBaris()">+ Tambah Baris Manual</button>
-        <button class="btn-simpan" onclick="simpanKeLabaKotor()">💾 Simpan Ke Laba Kotor</button>
-        <button class="btn-excel" onclick="exportKeExcel()">📊 Download XLSX</button>
-        <button class="btn-refresh" onclick="ambilDataSupabase()">🔄 Refresh Data</button>
+        <button class="btn-tambah" onclick="tambahBaris()">+ Tambah Baris </button>
+        <button class="btn-simpan" onclick="simpanKeLabaKotor()">Simpan/button>
+        <button class="btn-excel" onclick="exportKeExcel()">Download XLSX</button>
+        <button class="btn-refresh" onclick="ambilDataSupabase()">🔄 Refresh </button>
     </div>
 
     <table id="tabelTransaksi">
