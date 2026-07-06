@@ -40,7 +40,7 @@
         .btn-excel { background-color: #16a34a; color: white; border: none; }
         .btn-refresh { background-color: #4b5563; color: white; border: none; }
         .btn-hapus { background-color: #f44336; color: white; border: none; padding: 2px 6px; }
-        
+         
         table {
             width: 100%;
             border-collapse: collapse;
@@ -75,10 +75,10 @@
             font-weight: bold;
         }
         .bg-sisa-po {
-            background-color: #fef08a !important; /* Warna kuning stabilo lembut */
+            background-color: #fef08a !important; 
             font-weight: bold;
         }
-        
+         
         input::-webkit-outer-spin-button,
         input::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -175,11 +175,9 @@
     </table>
 
     <script>
-        // Endpoint Supabase Pertama untuk data_pengiriman
         const SUPABASE_URL = 'https://ntaectphgoelmhzrkatp.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50YWVjdHBoZ29lbG1oenJrYXRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzExNDYsImV4cCI6MjA4ODE0NzE0Nn0.-8E98wpkzHBARRhW6PKhBtf2XKhWFjq7idAzw9jlcKg';
 
-        // Endpoint Supabase Baru untuk laba_kotor
         const SB_URL = "https://qnamtickoteyvydayyor.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFuYW10aWNrb3RleXZ5ZGF5eW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4OTU2MzksImV4cCI6MjA5MzQ3MTYzOX0.VAeN0JVnz4WNPzY5NTGmtGeHD-Da_qkCvy84ZDYZNHo";
         const supabaseBaru = supabase.createClient(SB_URL, SB_KEY);
@@ -196,7 +194,6 @@
                 const tanggalMulai = `${tahun}-${bulan}-01`;
                 const tanggalSelesai = `${tahun}-${bulan}-${String(tanggalTerakhir).padStart(2, '0')}`;
 
-                // 1. Ambil data dari tabel data_pengiriman
                 const urlEndpoint = `${SUPABASE_URL}/rest/v1/data_pengiriman?select=tanggal,delivery_to,jumlah_keluar,supplier&tanggal=gte.${tanggalMulai}&tanggal=lte.${tanggalSelesai}&supplier=not.ilike.*pan transport*&order=tanggal.asc`;
                 const responseDP = await fetch(urlEndpoint, {
                     method: 'GET',
@@ -209,7 +206,6 @@
                 if (!responseDP.ok) throw new Error('Gagal mengambil data_pengiriman');
                 const dataPengiriman = await responseDP.json();
 
-                // 2. Ambil data yang sudah pernah disimpan di tabel laba_kotor
                 const { data: dataLabaKotor, error: errorLK } = await supabaseBaru
                     .from('laba_kotor')
                     .select('*')
@@ -227,7 +223,6 @@
                     return;
                 }
 
-                // Buat map data laba_kotor berdasarkan tanggal, tujuan & qty untuk sinkronisasi nilai lama
                 const mapLabaKotor = {};
                 if (dataLabaKotor) {
                     dataLabaKotor.forEach(lk => {
@@ -236,7 +231,6 @@
                     });
                 }
 
-                // Render Gabungan Data
                 dataPengiriman.forEach(item => {
                     const keyMatch = `${item.tanggal}_${item.delivery_to}_${item.jumlah_keluar}`;
                     const savedData = mapLabaKotor[keyMatch] || {};
@@ -273,7 +267,6 @@
                     tableBody.insertAdjacentHTML('beforeend', rowHtml);
                 });
 
-                // Trigger kalkulasi awal untuk memformat nominal ribuan di semua baris
                 const semuaBeliHd = tableBody.querySelectorAll('.beli_hd');
                 semuaBeliHd.forEach(input => hitungLogikaTabel(input));
                 
@@ -294,20 +287,15 @@
                 let inputTanggal = row.querySelector('.tanggal');
                 if (inputTanggal) {
                     let tanggalSekarang = inputTanggal.value.trim();
-                    
                     if (tanggalSebelumnya !== "" && tanggalSekarang !== tanggalSebelumnya) {
                         warnaIndex = (warnaIndex + 1) % DAFTAR_BG_WARNA.length;
                     }
-                    
                     let warnaPilihan = DAFTAR_BG_WARNA[warnaIndex];
-                    
                     row.style.setProperty('background-color', warnaPilihan, 'important');
                     let semuaKolom = row.querySelectorAll('td');
-                    allKolom = row.querySelectorAll('td');
                     semuaKolom.forEach(td => {
                         td.style.setProperty('background-color', warnaPilihan, 'important');
                     });
-                    
                     tanggalSebelumnya = tanggalSekarang;
                 }
             });
@@ -348,7 +336,6 @@
 
             let qtyReal = qtyInput * 1000;
 
-            // Indikator Peringatan Qty vs PO Qty
             let angkaCocok = 0;
             if (poQty === 20) {
                 angkaCocok = 20 / 5;
@@ -364,11 +351,9 @@
             }
 
             let beliPpn = beliHd * 0.11;
-
             let inputPbbkb = row.querySelector('.beli_pbbkb');
             let inputPph = row.querySelector('.beli_pph');
             
-            // Perhitungan Otomatis berdasarkan HAD (beliHd) jika kolom bernilai 0 atau belum dimodifikasi
             let beliPbbkb = (bersihkanAngka(inputPbbkb.value) === 0 && beliHd > 0 && !inputPbbkb.dataset.userEdited) ? (beliHd * 0.075) : bersihkanAngka(inputPbbkb.value);
             let beliPph = (bersihkanAngka(inputPph.value) === 0 && beliHd > 0 && !inputPph.dataset.userEdited) ? (beliHd * 0.003) : bersihkanAngka(inputPph.value);
 
@@ -379,7 +364,6 @@
                 inputPph.value = keRibuan(beliPph);
             }
 
-            // Jika user secara sadar mengubah input PBBKB atau PPH, beri tanda data modifikasi manual
             if (element === inputPbbkb) inputPbbkb.dataset.userEdited = "true";
             if (element === inputPph) inputPph.dataset.userEdited = "true";
 
@@ -454,7 +438,7 @@
             }
             
             let newRow = rowTemplate.cloneNode(true);
-            newRow.removeAttribute('data-id'); // Hapus ID bawaan baris kloningan agar dihitung sebagai data baru
+            newRow.removeAttribute('data-id'); 
             
             let inputs = newRow.getElementsByTagName('input');
             for (let i = 0; i < inputs.length; i++) {
@@ -485,16 +469,18 @@
             }
         }
 
+        // PERBAIKAN TOTAL: Kirim satu per satu langsung lewat REST API untuk mematikan paksaan On-Conflict Supabase JS
         async function simpanKeLabaKotor() {
             const semuaBaris = document.querySelectorAll('#bodyTabel tr');
-            const dataUntukDisimpan = [];
-
             if (semuaBaris.length === 0 || (semuaBaris.length === 1 && semuaBaris[0].querySelectorAll('input').length === 0)) {
                 alert("Tidak ada data yang bisa disimpan.");
                 return;
             }
 
-            semuaBaris.forEach(row => {
+            let totalTersimpan = 0;
+            let adaError = false;
+
+            for (const row of semuaBaris) {
                 const idData = row.getAttribute('data-id');
                 const tgl = row.querySelector('.tanggal').value || new Date().toISOString().split('T')[0];
                 const poQty = bersihkanAngka(row.querySelector('.po_qty').value);
@@ -522,28 +508,55 @@
                     by_lain: byLain
                 };
 
-                // Jika baris ini memiliki ID database, lampirkan agar diupdate, bukan diinsert baru
-                if (idData && idData !== "null" && idData !== "") {
-                    payload.id = parseInt(idData);
+                try {
+                    let response;
+                    
+                    // Jika ada ID -> Lakukan PATCH khusus untuk baris ID tersebut
+                    if (idData && idData !== "null" && idData !== "") {
+                        response = await fetch(`${SB_URL}/rest/v1/laba_kotor?id=eq.${idData}`, {
+                            method: 'PATCH',
+                            headers: {
+                                'apikey': SB_KEY,
+                                'Authorization': `Bearer ${SB_KEY}`,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=representation'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                    } 
+                    // Jika tidak ada ID -> Lakukan POST (Insert murni tanpa aturan key conflict)
+                    else {
+                        response = await fetch(`${SB_URL}/rest/v1/laba_kotor`, {
+                            method: 'POST',
+                            headers: {
+                                'apikey': SB_KEY,
+                                'Authorization': `Bearer ${SB_KEY}`,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=representation'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                    }
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(errorText);
+                    }
+
+                    totalTersimpan++;
+                } catch (err) {
+                    console.error("Gagal memproses baris:", payload, err);
+                    adaError = true;
                 }
-
-                dataUntukDisimpan.push(payload);
-            });
-
-            try {
-                // Menggunakan .upsert() dengan pengaman onConflict
-                const { data, error } = await supabaseBaru
-                    .from('laba_kotor')
-                    .upsert(dataUntukDisimpan, { onConflict: 'tanggal,tujuan,qty' })
-                    .select();
-
-                if (error) throw error;
-                alert(`Berhasil memperbarui / sinkronisasi ${data.length} baris data ke Supabase!`);
-                await ambilDataSupabase(); // Muat ulang agar baris baru mendapatkan ID-nya masing-masing
-            } catch (err) {
-                console.error(err);
-                alert('Gagal menyimpan ke Supabase: ' + err.message);
             }
+
+            if (adaError) {
+                alert(`Proses selesai dengan beberapa kendala. Berhasil menyimpan ${totalTersimpan} baris.`);
+            } else {
+                alert(`Luar biasa! Berhasil menyimpan total ${totalTersimpan} baris data ke Supabase tanpa error.`);
+            }
+
+            await ambilDataSupabase(); 
         }
 
         function exportKeExcel() {
