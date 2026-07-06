@@ -152,7 +152,7 @@
             </tr>
         </thead>
         <tbody id="bodyTabel">
-            </tbody>
+        </tbody>
         <tfoot>
             <tr>
                 <td style="text-align: right; font-weight: bold;">TOTAL:</td>
@@ -227,7 +227,7 @@
                     return;
                 }
 
-                // Buat map data laba_kotor berdasarkan tanggal & tujuan untuk memudahkan sinkronisasi nilai lama
+                // Buat map data laba_kotor berdasarkan tanggal, tujuan & qty untuk sinkronisasi nilai lama
                 const mapLabaKotor = {};
                 if (dataLabaKotor) {
                     dataLabaKotor.forEach(lk => {
@@ -242,7 +242,7 @@
                     const savedData = mapLabaKotor[keyMatch] || {};
 
                     let rowHtml = `
-                        <tr>
+                        <tr data-id="${savedData.id || ''}">
                             <td><input type="text" class="tanggal" value="${item.tanggal || ''}" onchange="warnaiUlangBaris()"></td>
                             <td><input type="text" class="po_qty" value="${savedData.po_qty !== undefined ? savedData.po_qty : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="no_so_do" value="${savedData.no_so_do || '-'}"></td>
@@ -290,7 +290,7 @@
             let warnaIndex = 0;
             let tanggalSebelumnya = "";
 
-            semuasBaris.forEach((row) => {
+            semuaBaris.forEach((row) => {
                 let inputTanggal = row.querySelector('.tanggal');
                 if (inputTanggal) {
                     let tanggalSekarang = inputTanggal.value.trim();
@@ -303,6 +303,7 @@
                     
                     row.style.setProperty('background-color', warnaPilihan, 'important');
                     let semuaKolom = row.querySelectorAll('td');
+                    allKolom = row.querySelectorAll('td');
                     semuaKolom.forEach(td => {
                         td.style.setProperty('background-color', warnaPilihan, 'important');
                     });
@@ -453,6 +454,8 @@
             }
             
             let newRow = rowTemplate.cloneNode(true);
+            newRow.removeAttribute('data-id'); // Hapus ID bawaan baris kloningan agar dihitung sebagai data baru
+            
             let inputs = newRow.getElementsByTagName('input');
             for (let i = 0; i < inputs.length; i++) {
                 inputs[i].removeAttribute('data-user-edited');
@@ -486,7 +489,13 @@
             const semuaBaris = document.querySelectorAll('#bodyTabel tr');
             const dataUntukDisimpan = [];
 
+            if (semuaBaris.length === 0 || (semuaBaris.length === 1 && semuaBaris[0].querySelectorAll('input').length === 0)) {
+                alert("Tidak ada data yang bisa disimpan.");
+                return;
+            }
+
             semuaBaris.forEach(row => {
+                const idData = row.getAttribute('data-id');
                 const tgl = row.querySelector('.tanggal').value || new Date().toISOString().split('T')[0];
                 const poQty = bersihkanAngka(row.querySelector('.po_qty').value);
                 const noSoDo = row.querySelector('.no_so_do').value || '-';
@@ -499,7 +508,7 @@
                 const oat = bersihkanAngka(row.querySelector('.oat').value);
                 const byLain = bersihkanAngka(row.querySelector('.by_lain').value);
 
-                dataUntukDisimpan.push({
+                const payload = {
                     tanggal: tgl,
                     po_qty: poQty,
                     no_so_do: noSoDo,
@@ -511,20 +520,26 @@
                     harga_jual: hargaJual,
                     oat: oat,
                     by_lain: byLain
-                });
+                };
+
+                // Jika baris ini memiliki ID database, lampirkan agar diupdate, bukan diinsert baru
+                if (idData && idData !== "null" && idData !== "") {
+                    payload.id = parseInt(idData);
+                }
+
+                dataUntukDisimpan.push(payload);
             });
 
             try {
-                // Gunakan upsert dengan batasan unik (jika Anda mendefinisikan kunci unik di supabase seperti tanggal+tujuan+qty)
-                // Ataupun insert biasa. Sesuai preferensi Anda:
+                // Menggunakan .upsert() dengan pengaman onConflict
                 const { data, error } = await supabaseBaru
                     .from('laba_kotor')
-                    .insert(dataUntukDisimpan)
+                    .upsert(dataUntukDisimpan, { onConflict: 'tanggal,tujuan,qty' })
                     .select();
 
                 if (error) throw error;
-                alert(`Berhasil menyimpan ${data.length} baris data transaksi ke Supabase!`);
-                await ambilDataSupabase(); // Muat ulang data agar sinkron kembali
+                alert(`Berhasil memperbarui / sinkronisasi ${data.length} baris data ke Supabase!`);
+                await ambilDataSupabase(); // Muat ulang agar baris baru mendapatkan ID-nya masing-masing
             } catch (err) {
                 console.error(err);
                 alert('Gagal menyimpan ke Supabase: ' + err.message);
