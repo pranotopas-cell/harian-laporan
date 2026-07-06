@@ -3,43 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notes Pengisian BBM</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>PENGISIAN BBM </title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f8fafc; color: #334155; margin: 0; padding: 0; }
-        .top-navbar { display: flex; justify-content: space-between; align-items: center; background: #0f172a; color: white; padding: 15px 20px; }
-        .nav-title { font-size: 1.2rem; font-weight: bold; }
-        .kelas-melayang button { padding: 8px 15px; margin-left: 5px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-home { background: #64748b; color: white; }
-        .btn-xlsx { background: #16a34a; color: white; }
-        .btn-save { background: #2563eb; color: white; }
-        .container { background: white; padding: 20px; margin: 20px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .grid-bawah { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 0 20px; }
-        .grid-bawah .container { margin: 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 0.9rem; }
-        th { background: #f1f5f9; }
-        input { width: 100%; padding: 5px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 4px; }
-        .readonly-input { background: #f8fafc; border: none; }
-        .btn-tambah, .btn-tambah-bawah { background: #0284c7; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-hapus { background: #ef4444; color: white; border: none; padding: 2px 6px; cursor: pointer; border-radius: 3px; }
-        .input-ikaen { background-color: #dcfce7 !important; color: #166534 !important; font-weight: bold; }
-        .input-ide { background-color: #fee2e2 !important; color: #991b1b !important; font-weight: bold; }
-        .row-subtotal { background-color: #f8fafc; font-weight: bold; font-style: italic; }
-        .row-grandtotal { background-color: #e2e8f0; font-weight: bold; }
+        :root {
+            --primary-color: #1e293b; 
+            --accent-blue: #2563eb;    
+            --accent-green: #16a34a;   
+            --bg-body: #f8fafc;
+            --border-color: #cbd5e1;
+            --text-main: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 10px 15px;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-size: 11px;
+        }
+
+        /* Top Navigation Header */
+        .top-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .select-bulan {
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: #f1f5f9;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .select-bulan:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            margin-bottom: 10px;
+        }
+
+        .action-bar {
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+            font-size: 11px;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 3px 4px;
+            text-align: center;
+            vertical-align: middle;
+            height: 22px;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.3px;
+        }
+
+        .tabel-bawah th { background-color: #334155; }
+        .tabel-resume th { background-color: #475569; }
+
+        tr:nth-child(even) td { background-color: #f8fafc; }
+
+        /* Input & Select Styling */
+        table input, table select {
+            width: 100%;
+            padding: 2px;
+            border: 1px solid transparent;
+            background: transparent;
+            box-sizing: border-box;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-main);
+            height: 20px;
+        }
+
+        table input:focus, table select:focus {
+            border-bottom: 1px solid var(--accent-blue);
+            background: #f1f5f9;
+            outline: none;
+        }
+
+        .readonly-input {
+            background-color: #e2e8f0 !important;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        /* Action Buttons */
+        button {
+            padding: 4px 10px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: opacity 0.15s;
+        }
+        button:hover { opacity: 0.9; }
+
+        .btn-home { background-color: #64748b; }
+        .btn-save { background-color: var(--accent-green); }
+        .btn-tambah { background-color: var(--accent-blue); }
+        .btn-tambah-bawah { background-color: #475569; }
+        .btn-xlsx { background-color: #0d9488; } 
+
+        .col-aksi { width: 20px !important; padding: 1px !important; }
+
+        .btn-hapus {
+            background: transparent;
+            color: #94a3b8;
+            font-size: 12px;
+            padding: 0;
+            font-weight: bold;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            justify-content: center;
+            align-content: center;
+        }
+        .btn-hapus:hover {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+
+        .grid-bawah {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 12px;
+        }
+
+        @media (max-width: 1100px) {
+            .grid-bawah { grid-template-columns: 1fr; }
+        }
+
+        table input.transportir-input {
+            text-align: left !important;
+            padding-left: 6px;
+        } 
+        .btn-tambah {
+            background-color: var(--accent-blue);
+            position: fixed;         
+            top: 20px;            
+            left: 20px;             
+            z-index: 9999;           
+            padding: 10px 16px;      
+            border-radius: 50px;     
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); 
+            font-size: 12px;
+        }
+        table input.input-ikaen {
+            color: #ef4444 !important;
+            font-weight: bold;
+        }
+        table input.input-ide {
+            color: #2563eb !important;
+            font-weight: bold;
+        }
+        .kelas-melayang {
+            position: fixed;   
+            top: 20px;      
+            right: 20px;       
+            z-index: 9999;     
+            display: flex;     
+            gap: 10px;         
+        }
+        .row-subtotal { 
+            background-color: #fee2e2 !important; 
+        }
         
-        /* Style Tambahan untuk Komponen Filter Lacak Nopol */
-        .filter-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #f1f5f9; padding: 10px 15px; border-radius: 6px; border: 1px solid #e2e8f0; width: fit-content; }
-        .filter-wrapper label { font-weight: bold; font-size: 0.9rem; color: #1e293b; }
-        .filter-wrapper input { width: 200px; background: #ffffff; }
-        .action-bar-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .row-subtotal td {
+            color: #b91c1c !important;            
+            font-weight: bold !important;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
 
 <div class="top-navbar">
-    <div class="nav-title">🗂️NOTES PENGISIAN BBM</div>
+    <div class="nav-left">
+        <div class="nav-title">🗂️NOTES PENGISIAN BBM</div>
+        <select id="filterPeriodeBulan" class="select-bulan" onchange="tarikDataSupabase()">
+            </select>
+    </div>
     <div class="kelas-melayang">
         <button class="btn-home" onclick="window.location.href='index.html'">HOME</button>
         <button class="btn-xlsx" id="btnExport" onclick="exportKeExcel()">DOWNLOAD XLSX</button>
@@ -178,7 +389,32 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
 window.onload = function() {
+    inisialisasiDropdownBulan();
     tarikDataSupabase();
+}
+
+// Fungsi untuk membuat pilihan dropdown bulan berjalan & 2 bulan sebelumnya secara dinamis
+function inisialisasiDropdownBulan() {
+    const select = document.getElementById("filterPeriodeBulan");
+    const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    
+    let hariIni = new Date();
+    
+    for (let i = 0; i < 3; i++) {
+        let d = new Date(hariIni.getFullYear(), hariIni.getMonth() - i, 1);
+        let tahun = d.getFullYear();
+        let bulan = d.getMonth(); // 0-11
+        
+        // Buat format YYYY-MM untuk value
+        let blnString = String(bulan + 1).padStart(2, '0');
+        let valuePeriode = `${tahun}-${blnString}`;
+        
+        let option = document.createElement("option");
+        option.value = valuePeriode;
+        option.text = `${namaBulan[bulan]} ${tahun}`;
+        
+        select.appendChild(option);
+    }
 }
 
 function handleTransportirColor(inputElement) {
@@ -197,8 +433,38 @@ function handleTransportirColor(inputElement) {
 
 async function tarikDataSupabase() {
     try {
-        const fetchAtas = supabaseClient.from('aktivitas_perjalanan').select('*').order('tanggal', { ascending: true }).order('id', { ascending: true });
-        const fetchBawah = supabaseClient.from('logistik_stok').select('*').order('tanggal', { ascending: true }).order('id', { ascending: true });
+        // Ambil nilai tahun dan bulan dari dropdown select yang aktif
+        const periodeTerpilih = document.getElementById("filterPeriodeBulan").value; // Format: "YYYY-MM"
+        const [tahun, bulan] = periodeTerpilih.split("-");
+        
+        // Logika tanggal awal bulan terpilih
+        const tglAwal = `${periodeTerpilih}-01`;
+        
+        // Perbaikan format lokal untuk tanggal akhir bulan agar tidak terpotong oleh UTC/Timezone
+        const tahunNum = parseInt(tahun, 10);
+        const bulanNum = parseInt(bulan, 10);
+        const tglAkhirObj = new Date(tahunNum, bulanNum, 0); 
+        
+        const yyyy = tglAkhirObj.getFullYear();
+        const mm = String(tglAkhirObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(tglAkhirObj.getDate()).padStart(2, '0');
+        const tglAkhir = `${yyyy}-${mm}-${dd}`; 
+
+        // Query data berdasarkan range tanggal 1 s/d akhir bulan terpilih
+        const fetchAtas = supabaseClient.from('aktivitas_perjalanan')
+                            .select('*')
+                            .gte('tanggal', tglAwal)
+                            .lte('tanggal', tglAkhir)
+                            .order('tanggal', { ascending: true })
+                            .order('id', { ascending: true });
+
+        const fetchBawah = supabaseClient.from('logistik_stok')
+                            .select('*')
+                            .gte('tanggal', tglAwal)
+                            .lte('tanggal', tglAkhir)
+                            .order('tanggal', { ascending: true })
+                            .order('id', { ascending: true });
+                            
         const [resAtas, resBawah] = await Promise.all([fetchAtas, fetchBawah]);
 
         if (resAtas.error) throw resAtas.error;
@@ -215,7 +481,6 @@ async function tarikDataSupabase() {
             resBawah.data.forEach(item => tambahBarisBawahDenganData(item));
         } else { tambahBarisBawah(); }
 
-        // Kosongkan filter pencarian saat load ulang data awal
         document.getElementById("filterNopol").value = "";
 
         hitungOtomatisAtas();
@@ -246,6 +511,11 @@ function tambahBarisAtasDenganData(data) {
         <td><input type="text" class="total-jarak readonly-input" value="0 KM" readonly></td>
         <td><input type="text" class="konsumsi-bbm readonly-input" value="0" readonly></td>
         <td><input type="text" class="keterangan-input" value="${data.keterangan || ''}" placeholder="..."></td>`;
+}
+
+function tambahBarisBawahWithData(data) {
+    // Alias wrapper fix
+    tambahBarisBawahDenganData(data);
 }
 
 function tambahBarisBawahDenganData(data) {
@@ -284,7 +554,6 @@ function tambahBarisAtas() {
         <td><input type="text" class="konsumsi-bbm readonly-input" value="" readonly></td>
         <td><input type="text" class="keterangan-input" placeholder="..."></td>`;
     
-    // Jika sedang dalam kondisi memfilter nopol, otomatis isikan nilai filter ke baris baru demi kemudahan input
     let filterVal = document.getElementById("filterNopol").value.trim().toUpperCase();
     if(filterVal) {
         row.querySelector(".nopol-input").value = filterVal;
@@ -310,9 +579,9 @@ function tambahBarisBawah() {
     hitungOtomatisAtas();
 }
 
-// --- LOGIKA FILTER VISUAL UNTUK MENCARI & MELACAK NOPOL ---
 function jalankanFilterNopol() {
     let filterVal = document.getElementById("filterNopol").value.trim().toUpperCase();
+    
     let rowsAtas = document.getElementById("bodyAtas").rows;
     let nomorUrutBaru = 1;
 
@@ -323,21 +592,71 @@ function jalankanFilterNopol() {
         
         let nopolRowText = nopolInput.value.trim().toUpperCase();
 
-        // Jika filter kosong, tunjukkan semua baris. Jika ada kata kunci, cocokkan string-nya
         if (filterVal === "" || nopolRowText.includes(filterVal)) {
-            r.style.display = ""; // Tampilkan baris
+            r.style.display = ""; 
             let noUrutEl = r.querySelector(".no-urut");
             if (noUrutEl) {
                 noUrutEl.innerText = nomorUrutBaru;
                 nomorUrutBaru++;
             }
         } else {
-            r.style.display = "none"; // Sembunyikan baris yang tidak cocok
+            r.style.display = "none"; 
+        }
+    }
+
+    let bodyResume = document.getElementById("bodyResume");
+    if (bodyResume) {
+        let rowsResume = bodyResume.rows;
+        let currentNopolGroupMatch = false; 
+
+        for (let i = 0; i < rowsResume.length; i++) {
+            let r = rowsResume[i];
+            
+            if (r.classList.contains("row-grandtotal")) {
+                r.style.display = (filterVal === "") ? "" : "none";
+                continue;
+            }
+
+            let firstCellText = r.cells[0].innerText.trim().toUpperCase();
+            
+            if (firstCellText !== "") {
+                if (filterVal === "" || firstCellText.includes(filterVal)) {
+                    r.style.display = "";
+                    currentNopolGroupMatch = true;
+                } else {
+                    r.style.display = "none";
+                    currentNopolGroupMatch = false;
+                }
+            } else {
+                r.style.display = currentNopolGroupMatch ? "" : "none";
+            }
+        }
+    }
+
+    let bodyResumePerjalanan = document.getElementById("bodyResumePerjalanan");
+    if (bodyResumePerjalanan) {
+        let rowsRP = bodyResumePerjalanan.rows;
+        for (let i = 0; i < rowsRP.length; i++) {
+            let r = rowsRP[i];
+            let firstCell = r.cells[0];
+            if (!firstCell) continue;
+
+            let nopolText = firstCell.innerText.trim().toUpperCase();
+
+            if (nopolText === "TOTAL FLEET") {
+                r.style.display = (filterVal === "") ? "" : "none";
+                continue;
+            }
+
+            if (filterVal === "" || nopolText.includes(filterVal)) {
+                r.style.display = "";
+            } else {
+                r.style.display = "none";
+            }
         }
     }
 }
 
-// --- FUNGSI KALKULASI UTAMA & RESUME ---
 function hitungOtomatisAtas() {
     let tbodyAtas = document.getElementById("bodyAtas");
     if (!tbodyAtas) return;
@@ -426,10 +745,8 @@ function hitungOtomatisAtas() {
         }
     }
 
-    // Panggil fungsi pembantu filter agar nomor urut visual di Tabel 1 sinkron setelah kalkulasi ulang
     jalankanFilterNopol();
 
-    // 4. Render TABEL 3: Resume Pemakaian BBM Per Unit
     let bodyResumeFIFO = document.getElementById("bodyResume");
     if (bodyResumeFIFO) {
         bodyResumeFIFO.innerHTML = "";
@@ -487,7 +804,6 @@ function hitungOtomatisAtas() {
         }
     }
 
-    // 5. Render TABEL 4: Resume Perjalanan & Performa
     let bodyResumePerjalanan = document.getElementById("bodyResumePerjalanan");
     if (bodyResumePerjalanan) {
         bodyResumePerjalanan.innerHTML = "";
