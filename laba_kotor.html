@@ -157,7 +157,8 @@
             <tr>
                 <td style="text-align: right; font-weight: bold;">TOTAL:</td>
                 <td><input type="text" id="gtPoQty" readonly></td>
-                <td colspan="2" style="text-align: right; font-weight: bold; color: #4b5563;">SISA PO QTY:</td>
+                <td style="text-align: right; font-weight: bold; color: #4b5563;">QTY:</td>
+                <td><input type="text" id="gtQty" readonly></td>
                 <td><input type="text" id="gtSisaPoQty" readonly class="bg-sisa-po" style="color: #b45309;"></td>
                 <td colspan="5" style="text-align: right; font-weight: bold; padding-right: 5px;">GRAND TOTAL:</td>
                 <td><input type="text" id="gtTotalBeli" readonly></td>
@@ -235,6 +236,11 @@
                     const keyMatch = `${item.tanggal}_${item.delivery_to}_${item.jumlah_keluar}`;
                     const savedData = mapLabaKotor[keyMatch] || {};
 
+                    let nilaiOat = '0';
+                    if (savedData.oat !== undefined) {
+                        nilaiOat = savedData.oat.toString();
+                    }
+
                     let rowHtml = `
                         <tr data-id="${savedData.id || ''}">
                             <td><input type="text" class="tanggal" value="${item.tanggal || ''}" onchange="warnaiUlangBaris()"></td>
@@ -255,7 +261,7 @@
                             <td><input type="text" class="jual_ppn" readonly></td>
                             <td><input type="text" class="total_jual" readonly></td>
                             
-                            <td><input type="text" class="oat" value="${savedData.oat !== undefined ? savedData.oat : '0'}" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="oat" value="${nilaiOat}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="total_oat" readonly></td>
                             <td><input type="text" class="by_lain" value="${savedData.by_lain !== undefined ? savedData.by_lain : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="total_by_lain" readonly></td>
@@ -283,6 +289,7 @@
             let warnaIndex = 0;
             let tanggalSebelumnya = "";
 
+            semuisBaris = document.querySelectorAll('#bodyTabel tr');
             semuaBaris.forEach((row) => {
                 let inputTanggal = row.querySelector('.tanggal');
                 if (inputTanggal) {
@@ -303,18 +310,18 @@
 
         function bersihkanAngka(str) {
             if (!str) return 0;
-            return parseFloat(str.toString().replace(/\./g, '').replace(/,/g, '.')) || 0;
+            return parseFloat(str.toString().replace(/\\./g, '').replace(/,/g, '.')) || 0;
         }
 
         function keRibuan(angka) {
-            let parts = parseFloat(angka).toFixed(1).replace(/\.0$/, '').split('.');
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            let parts = parseFloat(angka).toFixed(1).replace(/\\.0$/, '').split('.');
+            parts[0] = parts[0].replace(/\\B(?=(\\d{3})+(?!\\d))/g, ".");
             return parts.join(',');
         }
 
         function formatDanHitung(input) {
             if (!input.classList.contains('tujuan') && !input.classList.contains('tanggal') && !input.classList.contains('no_so_do')) {
-                let nilaiAsli = input.value.replace(/\./g, '');
+                let nilaiAsli = input.value.replace(/\\./g, '');
                 if(!isNaN(nilaiAsli) && nilaiAsli !== "") {
                     let angkaMurni = parseFloat(nilaiAsli);
                     input.value = angkaMurni.toLocaleString('id-ID'); 
@@ -404,19 +411,20 @@
             let gtPoQty = 0, gtQty = 0, gtBeli = 0, gtJual = 0, gtOat = 0, gtByLain = 0, gtKbPpn = 0, gtLaba = 0;
 
             semuaBaris.forEach(row => {
-                gtPoQty += bersihkanAngka(row.querySelector('.po_qty')?.value);
-                gtQty += bersihkanAngka(row.querySelector('.qty')?.value);
-                gtBeli += bersihkanAngka(row.querySelector('.total_beli')?.value);
-                gtJual += bersihkanAngka(row.querySelector('.total_jual')?.value);
-                gtOat += bersihkanAngka(row.querySelector('.total_oat')?.value);
-                gtByLain += bersihkanAngka(row.querySelector('.total_by_lain')?.value);
-                gtKbPpn += bersihkanAngka(row.querySelector('.kb_ppn')?.value);
-                gtLaba += bersihkanAngka(row.querySelector('.laba_kotor')?.value);
+                if (row.querySelector('.po_qty')) gtPoQty += bersihkanAngka(row.querySelector('.po_qty').value);
+                if (row.querySelector('.qty')) gtQty += bersihkanAngka(row.querySelector('.qty').value);
+                if (row.querySelector('.total_beli')) gtBeli += bersihkanAngka(row.querySelector('.total_beli').value);
+                if (row.querySelector('.total_jual')) gtJual += bersihkanAngka(row.querySelector('.total_jual').value);
+                if (row.querySelector('.total_oat')) gtOat += bersihkanAngka(row.querySelector('.total_oat').value);
+                if (row.querySelector('.total_by_lain')) gtByLain += bersihkanAngka(row.querySelector('.total_by_lain').value);
+                if (row.querySelector('.kb_ppn')) gtKbPpn += bersihkanAngka(row.querySelector('.kb_ppn').value);
+                if (row.querySelector('.laba_kotor')) gtLaba += bersihkanAngka(row.querySelector('.laba_kotor').value);
             });
 
             let sisaPoQty = gtPoQty - gtQty;
 
             document.getElementById('gtPoQty').value = keRibuan(gtPoQty);
+            document.getElementById('gtQty').value = keRibuan(gtQty);
             document.getElementById('gtSisaPoQty').value = keRibuan(sisaPoQty);
             document.getElementById('gtTotalBeli').value = keRibuan(gtBeli);
             document.getElementById('gtTotalJual').value = keRibuan(gtJual);
@@ -469,7 +477,6 @@
             }
         }
 
-        // PERBAIKAN TOTAL: Kirim satu per satu langsung lewat REST API untuk mematikan paksaan On-Conflict Supabase JS
         async function simpanKeLabaKotor() {
             const semuaBaris = document.querySelectorAll('#bodyTabel tr');
             if (semuaBaris.length === 0 || (semuaBaris.length === 1 && semuaBaris[0].querySelectorAll('input').length === 0)) {
@@ -477,10 +484,9 @@
                 return;
             }
 
-            let totalTersimpan = 0;
-            let adaError = false;
+            const promises = [];
 
-            for (const row of semuaBaris) {
+            semuaBaris.forEach(row => {
                 const idData = row.getAttribute('data-id');
                 const tgl = row.querySelector('.tanggal').value || new Date().toISOString().split('T')[0];
                 const poQty = bersihkanAngka(row.querySelector('.po_qty').value);
@@ -508,52 +514,52 @@
                     by_lain: byLain
                 };
 
-                try {
-                    let response;
-                    
-                    // Jika ada ID -> Lakukan PATCH khusus untuk baris ID tersebut
-                    if (idData && idData !== "null" && idData !== "") {
-                        response = await fetch(`${SB_URL}/rest/v1/laba_kotor?id=eq.${idData}`, {
-                            method: 'PATCH',
-                            headers: {
-                                'apikey': SB_KEY,
-                                'Authorization': `Bearer ${SB_KEY}`,
-                                'Content-Type': 'application/json',
-                                'Prefer': 'return=representation'
-                            },
-                            body: JSON.stringify(payload)
-                        });
-                    } 
-                    // Jika tidak ada ID -> Lakukan POST (Insert murni tanpa aturan key conflict)
-                    else {
-                        response = await fetch(`${SB_URL}/rest/v1/laba_kotor`, {
-                            method: 'POST',
-                            headers: {
-                                'apikey': SB_KEY,
-                                'Authorization': `Bearer ${SB_KEY}`,
-                                'Content-Type': 'application/json',
-                                'Prefer': 'return=representation'
-                            },
-                            body: JSON.stringify(payload)
-                        });
-                    }
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(errorText);
-                    }
-
-                    totalTersimpan++;
-                } catch (err) {
-                    console.error("Gagal memproses baris:", payload, err);
-                    adaError = true;
+                let fetchPromise;
+                if (idData && idData !== "null" && idData !== "") {
+                    fetchPromise = fetch(`${SB_URL}/rest/v1/laba_kotor?id=eq.${idData}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': SB_KEY,
+                            'Authorization': `Bearer ${SB_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    fetchPromise = fetch(`${SB_URL}/rest/v1/laba_kotor`, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SB_KEY,
+                            'Authorization': `Bearer ${SB_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=representation'
+                        },
+                        body: JSON.stringify(payload)
+                    });
                 }
-            }
 
-            if (adaError) {
-                alert(`Proses selesai dengan beberapa kendala. Berhasil menyimpan ${totalTersimpan} baris.`);
-            } else {
-                alert(`Luar biasa! Berhasil menyimpan total ${totalTersimpan} baris data ke Supabase tanpa error.`);
+                promises.push(fetchPromise.then(res => {
+                    if (!res.ok) throw new Error("Gagal memproses baris data");
+                    return true;
+                }).catch(err => {
+                    console.error(err);
+                    return false;
+                }));
+            });
+
+            try {
+                const hasilSesi = await Promise.all(promises);
+                const sukses = hasilSesi.filter(h => h === true).length;
+                const gagal = hasilSesi.filter(h => h === false).length;
+
+                if (gagal > 0) {
+                    alert(`Proses selesai. Berhasil menyimpan ${sukses} baris, gagal ${gagal} baris.`);
+                } else {
+                    alert(`Luar biasa! Berhasil menyimpan total ${sukses} baris data ke Supabase.`);
+                }
+            } catch (err) {
+                alert("Terjadi kendala saat menyimpan data.");
             }
 
             await ambilDataSupabase(); 
