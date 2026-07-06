@@ -74,6 +74,10 @@
             color: #cc0000 !important;
             font-weight: bold;
         }
+        .bg-sisa-po {
+            background-color: #fef08a !important; /* Warna kuning stabilo lembut */
+            font-weight: bold;
+        }
         
         input::-webkit-outer-spin-button,
         input::-webkit-inner-spin-button {
@@ -111,11 +115,11 @@
 <body>
 
     <h2>Perhitungan Harga Beli dan Harga Jual</h2>
-    <p>*Data otomatis ditarik dari Supabase.</p>
+    <p>*Data ditarik dan disinkronkan otomatis dengan database Supabase.</p>
 
     <div class="btn-container">
         <button class="btn-tambah" onclick="tambahBaris()">+ Tambah Baris </button>
-        <button class="btn-simpan" onclick="simpanKeLabaKotor()">Simpan/button>
+        <button class="btn-simpan" onclick="simpanKeLabaKotor()">Simpan</button>
         <button class="btn-excel" onclick="exportKeExcel()">Download XLSX</button>
         <button class="btn-refresh" onclick="ambilDataSupabase()">🔄 Refresh </button>
     </div>
@@ -148,40 +152,14 @@
             </tr>
         </thead>
         <tbody id="bodyTabel">
-            <tr>
-                <td><input type="text" class="tanggal" value="2026-07-05" onchange="warnaiUlangBaris()"></td>
-                <td><input type="text" class="po_qty" value="0" oninput="formatDanHitung(this)"></td>
-                <td><input type="text" class="no_so_do" value="-"></td>
-                <td><input type="text" class="tujuan" value="Jakarta"></td>
-                <td><input type="text" class="qty" value="0" oninput="formatDanHitung(this)"></td>
-                
-                <td><input type="text" class="beli_hd" value="0" oninput="formatDanHitung(this)"></td>
-                <td><input type="text" class="beli_ppn" readonly></td>
-                <td><input type="text" class="beli_pbbkb" value="0" oninput="formatDanHitung(this)"></td>
-                <td><input type="text" class="beli_pph" value="0" oninput="formatDanHitung(this)"></td>
-                <td><input type="text" class="harga_beli" readonly></td>
-                <td><input type="text" class="total_beli" readonly></td>
-                
-                <td><input type="text" class="harga_jual" value="0" oninput="formatDanHitung(this)"></td>
-                <td><input type="text" class="jual_hd" readonly></td>
-                <td><input type="text" class="jual_ppn" readonly></td>
-                <td><input type="text" class="total_jual" readonly></td>
-                
-                <td><input type="text" class="oat" value="0" oninput="formatDanHitung(this)"></td>
-                <td><input type="text" class="total_oat" readonly></td>
-                <td><input type="text" class="by_lain" value="0" oninput="formatDanHitung(this)"></td>
-                <td><input type="text" class="total_by_lain" readonly></td>
-                
-                <td><input type="text" class="kb_ppn" readonly></td>
-                <td><input type="text" class="laba_kotor" readonly style="font-weight:bold; color: green;"></td>
-                <td><button class="btn-hapus" onclick="hapusBaris(this)">X</button></td>
-            </tr>
-        </tbody>
+            </tbody>
         <tfoot>
             <tr>
                 <td style="text-align: right; font-weight: bold;">TOTAL:</td>
                 <td><input type="text" id="gtPoQty" readonly></td>
-                <td colspan="8" style="text-align: right; font-weight: bold; padding-right: 5px;">GRAND TOTAL:</td>
+                <td colspan="2" style="text-align: right; font-weight: bold; color: #4b5563;">SISA PO QTY:</td>
+                <td><input type="text" id="gtSisaPoQty" readonly class="bg-sisa-po" style="color: #b45309;"></td>
+                <td colspan="5" style="text-align: right; font-weight: bold; padding-right: 5px;">GRAND TOTAL:</td>
                 <td><input type="text" id="gtTotalBeli" readonly></td>
                 <td colspan="3"></td>
                 <td><input type="text" id="gtTotalJual" readonly></td>
@@ -218,9 +196,9 @@
                 const tanggalMulai = `${tahun}-${bulan}-01`;
                 const tanggalSelesai = `${tahun}-${bulan}-${String(tanggalTerakhir).padStart(2, '0')}`;
 
+                // 1. Ambil data dari tabel data_pengiriman
                 const urlEndpoint = `${SUPABASE_URL}/rest/v1/data_pengiriman?select=tanggal,delivery_to,jumlah_keluar,supplier&tanggal=gte.${tanggalMulai}&tanggal=lte.${tanggalSelesai}&supplier=not.ilike.*pan transport*&order=tanggal.asc`;
-
-                const response = await fetch(urlEndpoint, {
+                const responseDP = await fetch(urlEndpoint, {
                     method: 'GET',
                     headers: {
                         'apikey': SUPABASE_KEY,
@@ -228,44 +206,64 @@
                         'Content-Type': 'application/json'
                     }
                 });
+                if (!responseDP.ok) throw new Error('Gagal mengambil data_pengiriman');
+                const dataPengiriman = await responseDP.json();
 
-                if (!response.ok) throw new Error('Gagal mengambil data dari Supabase');
-                
-                const data = await response.json();
+                // 2. Ambil data yang sudah pernah disimpan di tabel laba_kotor
+                const { data: dataLabaKotor, error: errorLK } = await supabaseBaru
+                    .from('laba_kotor')
+                    .select('*')
+                    .gte('tanggal', tanggalMulai)
+                    .lte('tanggal', tanggalSelesai)
+                    .order('tanggal', { ascending: true });
+                if (errorLK) throw errorLK;
+
                 const tableBody = document.getElementById('bodyTabel');
-                
-                if (data.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="22">Data pengiriman kosong untuk bulan berjalan.</td></tr>';
+                tableBody.innerHTML = ''; 
+
+                if (dataPengiriman.length === 0 && (!dataLabaKotor || dataLabaKotor.length === 0)) {
+                    tableBody.innerHTML = '<tr><td colspan="22">Data kosong untuk bulan berjalan.</td></tr>';
                     hitungGrandTotal();
                     return;
                 }
 
-                tableBody.innerHTML = ''; 
+                // Buat map data laba_kotor berdasarkan tanggal & tujuan untuk memudahkan sinkronisasi nilai lama
+                const mapLabaKotor = {};
+                if (dataLabaKotor) {
+                    dataLabaKotor.forEach(lk => {
+                        const key = `${lk.tanggal}_${lk.tujuan}_${lk.qty}`;
+                        mapLabaKotor[key] = lk;
+                    });
+                }
 
-                data.forEach(item => {
+                // Render Gabungan Data
+                dataPengiriman.forEach(item => {
+                    const keyMatch = `${item.tanggal}_${item.delivery_to}_${item.jumlah_keluar}`;
+                    const savedData = mapLabaKotor[keyMatch] || {};
+
                     let rowHtml = `
                         <tr>
                             <td><input type="text" class="tanggal" value="${item.tanggal || ''}" onchange="warnaiUlangBaris()"></td>
-                            <td><input type="text" class="po_qty" value="0" oninput="formatDanHitung(this)"></td>
-                            <td><input type="text" class="no_so_do" value="-"></td>
+                            <td><input type="text" class="po_qty" value="${savedData.po_qty !== undefined ? savedData.po_qty : '0'}" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="no_so_do" value="${savedData.no_so_do || '-'}"></td>
                             <td><input type="text" class="tujuan" value="${item.delivery_to || ''}"></td>
                             <td><input type="text" class="qty" value="${item.jumlah_keluar || 0}" oninput="formatDanHitung(this)"></td>
                             
-                            <td><input type="text" class="beli_hd" value="0" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="beli_hd" value="${savedData.beli_hd !== undefined ? savedData.beli_hd : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="beli_ppn" readonly></td>
-                            <td><input type="text" class="beli_pbbkb" value="0" oninput="formatDanHitung(this)"></td>
-                            <td><input type="text" class="beli_pph" value="0" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="beli_pbbkb" value="${savedData.beli_pbbkb !== undefined ? savedData.beli_pbbkb : '0'}" oninput="formatDanHitung(this)" ${savedData.beli_pbbkb ? 'data-user-edited="true"' : ''}></td>
+                            <td><input type="text" class="beli_pph" value="${savedData.beli_pph !== undefined ? savedData.beli_pph : '0'}" oninput="formatDanHitung(this)" ${savedData.beli_pph ? 'data-user-edited="true"' : ''}></td>
                             <td><input type="text" class="harga_beli" readonly></td>
                             <td><input type="text" class="total_beli" readonly></td>
                             
-                            <td><input type="text" class="harga_jual" value="0" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="harga_jual" value="${savedData.harga_jual !== undefined ? savedData.harga_jual : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="jual_hd" readonly></td>
                             <td><input type="text" class="jual_ppn" readonly></td>
                             <td><input type="text" class="total_jual" readonly></td>
                             
-                            <td><input type="text" class="oat" value="0" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="oat" value="${savedData.oat !== undefined ? savedData.oat : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="total_oat" readonly></td>
-                            <td><input type="text" class="by_lain" value="0" oninput="formatDanHitung(this)"></td>
+                            <td><input type="text" class="by_lain" value="${savedData.by_lain !== undefined ? savedData.by_lain : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="total_by_lain" readonly></td>
                             
                             <td><input type="text" class="kb_ppn" readonly></td>
@@ -275,6 +273,7 @@
                     tableBody.insertAdjacentHTML('beforeend', rowHtml);
                 });
 
+                // Trigger kalkulasi awal untuk memformat nominal ribuan di semua baris
                 const semuaBeliHd = tableBody.querySelectorAll('.beli_hd');
                 semuaBeliHd.forEach(input => hitungLogikaTabel(input));
                 
@@ -282,7 +281,7 @@
 
             } catch (error) {
                 console.error(error);
-                alert('Koneksi Supabase Error: ' + error.message);
+                alert('Gagal Sinkronisasi Supabase: ' + error.message);
             }
         }
 
@@ -291,7 +290,7 @@
             let warnaIndex = 0;
             let tanggalSebelumnya = "";
 
-            semuaBaris.forEach((row) => {
+            semuasBaris.forEach((row) => {
                 let inputTanggal = row.querySelector('.tanggal');
                 if (inputTanggal) {
                     let tanggalSekarang = inputTanggal.value.trim();
@@ -417,10 +416,11 @@
 
         function hitungGrandTotal() {
             let semuaBaris = document.querySelectorAll('#bodyTabel tr');
-            let gtPoQty = 0, gtBeli = 0, gtJual = 0, gtOat = 0, gtByLain = 0, gtKbPpn = 0, gtLaba = 0;
+            let gtPoQty = 0, gtQty = 0, gtBeli = 0, gtJual = 0, gtOat = 0, gtByLain = 0, gtKbPpn = 0, gtLaba = 0;
 
             semuaBaris.forEach(row => {
                 gtPoQty += bersihkanAngka(row.querySelector('.po_qty')?.value);
+                gtQty += bersihkanAngka(row.querySelector('.qty')?.value);
                 gtBeli += bersihkanAngka(row.querySelector('.total_beli')?.value);
                 gtJual += bersihkanAngka(row.querySelector('.total_jual')?.value);
                 gtOat += bersihkanAngka(row.querySelector('.total_oat')?.value);
@@ -429,7 +429,10 @@
                 gtLaba += bersihkanAngka(row.querySelector('.laba_kotor')?.value);
             });
 
+            let sisaPoQty = gtPoQty - gtQty;
+
             document.getElementById('gtPoQty').value = keRibuan(gtPoQty);
+            document.getElementById('gtSisaPoQty').value = keRibuan(sisaPoQty);
             document.getElementById('gtTotalBeli').value = keRibuan(gtBeli);
             document.getElementById('gtTotalJual').value = keRibuan(gtJual);
             document.getElementById('gtTotalOat').value = keRibuan(gtOat);
@@ -440,16 +443,19 @@
 
         function tambahBaris() {
             let tableBody = document.getElementById('bodyTabel');
-            let rowTemplate = tableBody.rows[0];
-            if(!rowTemplate) return;
+            let rows = tableBody.getElementsByTagName('tr');
+            
+            let rowTemplate;
+            if(rows.length > 0) {
+                rowTemplate = rows[0];
+            } else {
+                return;
+            }
             
             let newRow = rowTemplate.cloneNode(true);
-
             let inputs = newRow.getElementsByTagName('input');
             for (let i = 0; i < inputs.length; i++) {
-                // Reset flag editan user di baris baru
                 inputs[i].removeAttribute('data-user-edited');
-                
                 if (!inputs[i].readOnly && !inputs[i].classList.contains('tanggal') && !inputs[i].classList.contains('tujuan')) {
                     if (inputs[i].classList.contains('no_so_do')) {
                         inputs[i].value = "-";
@@ -509,14 +515,16 @@
             });
 
             try {
+                // Gunakan upsert dengan batasan unik (jika Anda mendefinisikan kunci unik di supabase seperti tanggal+tujuan+qty)
+                // Ataupun insert biasa. Sesuai preferensi Anda:
                 const { data, error } = await supabaseBaru
                     .from('laba_kotor')
                     .insert(dataUntukDisimpan)
                     .select();
 
                 if (error) throw error;
-
                 alert(`Berhasil menyimpan ${data.length} baris data transaksi ke Supabase!`);
+                await ambilDataSupabase(); // Muat ulang data agar sinkron kembali
             } catch (err) {
                 console.error(err);
                 alert('Gagal menyimpan ke Supabase: ' + err.message);
@@ -560,10 +568,6 @@
 
         window.onload = async function() {
             await ambilDataSupabase();
-            if(document.querySelector('.beli_hd')) {
-                hitungLogikaTabel(document.querySelector('.beli_hd'));
-            }
-            warnaiUlangBaris();
         };
     </script>
 
