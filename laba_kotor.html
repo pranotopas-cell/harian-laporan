@@ -155,11 +155,13 @@
         </tbody>
         <tfoot>
             <tr>
-                <td style="text-align: right; font-weight: bold;">TOTAL:</td>
+                <td style="text-align: right; font-weight: bold;">TOTAL PO:</td>
                 <td><input type="text" id="gtPoQty" readonly></td>
-                <td colspan="2" style="text-align: right; font-weight: bold; color: #4b5563;">SISA PO QTY:</td>
+                <td style="text-align: right; font-weight: bold; color: #4b5563;">TOTAL QTY:</td>
+                <td><input type="text" id="gtTotalQty" readonly class="bg-sisa-po" style="color: #0284c7;"></td>
+                <td style="text-align: right; font-weight: bold; color: #4b5563;">SISA PO:</td>
                 <td><input type="text" id="gtSisaPoQty" readonly class="bg-sisa-po" style="color: #b45309;"></td>
-                <td colspan="5" style="text-align: right; font-weight: bold; padding-right: 5px;">GRAND TOTAL:</td>
+                <td colspan="4" style="text-align: right; font-weight: bold; padding-right: 5px;">GRAND TOTAL:</td>
                 <td><input type="text" id="gtTotalBeli" readonly></td>
                 <td colspan="3"></td>
                 <td><input type="text" id="gtTotalJual" readonly></td>
@@ -275,6 +277,7 @@
 
                 // Trigger kalkulasi awal untuk memformat nominal ribuan di semua baris
                 const semuaBeliHd = tableBody.querySelectorAll('.beli_hd');
+                semuasiBeliHd = tableBody.querySelectorAll('.beli_hd');
                 semuaBeliHd.forEach(input => hitungLogikaTabel(input));
                 
                 warnaiUlangBaris();
@@ -303,7 +306,6 @@
                     
                     row.style.setProperty('background-color', warnaPilihan, 'important');
                     let semuaKolom = row.querySelectorAll('td');
-                    allKolom = row.querySelectorAll('td');
                     semuaKolom.forEach(td => {
                         td.style.setProperty('background-color', warnaPilihan, 'important');
                     });
@@ -433,6 +435,7 @@
             let sisaPoQty = gtPoQty - gtQty;
 
             document.getElementById('gtPoQty').value = keRibuan(gtPoQty);
+            document.getElementById('gtTotalQty').value = keRibuan(gtQty); // Update kolom Total Qty baru
             document.getElementById('gtSisaPoQty').value = keRibuan(sisaPoQty);
             document.getElementById('gtTotalBeli').value = keRibuan(gtBeli);
             document.getElementById('gtTotalJual').value = keRibuan(gtJual);
@@ -489,7 +492,7 @@
             const semuaBaris = document.querySelectorAll('#bodyTabel tr');
             const dataUntukDisimpan = [];
 
-            if (semuaBaris.length === 0 || (semuaBaris.length === 1 && semuaBaris[0].querySelectorAll('input').length === 0)) {
+            if (semuasBaris.length === 0 || (semuaBaris.length === 1 && semuaBaris[0].querySelectorAll('input').length === 0)) {
                 alert("Tidak ada data yang bisa disimpan.");
                 return;
             }
@@ -531,10 +534,10 @@
             });
 
             try {
-                // Menggunakan .upsert() dengan pengaman onConflict
+                // Menggunakan .upsert() dengan pengaman kombinasi 4 kolom unik
                 const { data, error } = await supabaseBaru
                     .from('laba_kotor')
-                    .upsert(dataUntukDisimpan, { onConflict: 'tanggal,tujuan,qty' })
+                    .upsert(dataUntukDisimpan, { onConflict: 'tanggal,tujuan,qty,no_so_do' })
                     .select();
 
                 if (error) throw error;
@@ -577,8 +580,8 @@
             rowsData.push(footerCells);
 
             const ws = XLSX.utils.aoa_to_sheet(rowsData);
-            XLSX.utils.book_append_sheet(wb, ws, "Laba Kotor Logistik");
-            XLSX.writeFile(wb, "Laporan_Logistik_LabaKotor.xlsx");
+            XXLSX.utils.book_append_sheet(wb, ws, "Laba Kotor Logistik");
+            XXLSX.writeFile(wb, "Laporan_Logistik_LabaKotor.xlsx");
         }
 
         window.onload = async function() {
