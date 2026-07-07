@@ -171,7 +171,7 @@
     </table>
 
     <script>
-        const SUPABASE_URL = 'https://ntaectphgoelmhzrkatp.supabase.co';
+       const SUPABASE_URL = 'https://ntaectphgoelmhzrkatp.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50YWVjdHBoZ29lbG1oenJrYXRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzExNDYsImV4cCI6MjA4ODE0NzE0Nn0.-8E98wpkzHBARRhW6PKhBtf2XKhWFjq7idAzw9jlcKg';
 
         const SB_URL = "https://qnamtickoteyvydayyor.supabase.co";
@@ -218,7 +218,7 @@
                     .select('*')
                     .gte('tanggal', tanggalMulai)
                     .lte('tanggal', tanggalSelesai)
-                    .order('tanggal', { ascending: true });
+                    .order('id', { ascending: true }); // Diurutkan berdasarkan ID terkecil agar antrean konsisten
                 if (errorLK) throw errorLK;
 
                 const tableBody = document.getElementById('bodyTabel');
@@ -231,16 +231,27 @@
                 }
 
                 const mapLabaKotor = {};
+                const counterSaved = {};
                 if (dataLabaKotor) {
                     dataLabaKotor.forEach(lk => {
-                        const key = `${lk.tanggal}_${lk.tujuan}_${lk.qty}`;
-                        mapLabaKotor[key] = lk;
+                        const baseKey = `${lk.tanggal}_${lk.tujuan}_${lk.qty}`;
+                        if (!counterSaved[baseKey]) counterSaved[baseKey] = 0;
+                        counterSaved[baseKey]++;
+                        
+                        const uniqueKey = `${baseKey}_${counterSaved[baseKey]}`;
+                        mapLabaKotor[uniqueKey] = lk;
                     });
                 }
 
+                const counterCurrent = {};
                 dataPengiriman.forEach(item => {
-                    const keyMatch = `${item.tanggal}_${item.delivery_to}_${item.jumlah_keluar}`;
-                    const savedData = mapLabaKotor[keyMatch] || {};
+                    const baseKeyMatch = `${item.tanggal}_${item.delivery_to}_${item.jumlah_keluar}`;
+                    if (!counterCurrent[baseKeyMatch]) counterCurrent[baseKeyMatch] = 0;
+                    counterCurrent[baseKeyMatch]++;
+                    
+                    const urutanBarisIni = counterCurrent[baseKeyMatch];
+                    const uniqueKeyMatch = `${baseKeyMatch}_${urutanBarisIni}`;
+                    const savedData = mapLabaKotor[uniqueKeyMatch] || {};
 
                     let nilaiOat = savedData.oat !== undefined ? Math.round(savedData.oat).toString() : '0';
                     let pbbkbValue = savedData.beli_pbbkb !== undefined ? Math.round(savedData.beli_pbbkb) : '';
@@ -249,8 +260,9 @@
                     let pbbkbAttr = (savedData.beli_pbbkb !== undefined && Math.round(savedData.beli_pbbkb) === 0) ? 'data-user-edited="true"' : '';
                     let pphAttr = (savedData.beli_pph !== undefined && Math.round(savedData.beli_pph) === 0) ? 'data-user-edited="true"' : '';
 
+                    // Kunci Perbaikan: Kita tanam data-urutan langsung ke elemen TR 
                     let rowHtml = `
-                        <tr data-id="${savedData.id || ''}">
+                        <tr data-id="${savedData.id || ''}" data-urutan="${urutanBarisIni}">
                             <td><input type="text" class="tanggal" value="${item.tanggal || ''}" onchange="warnaiUlangBaris()"></td>
                             <td><input type="text" class="po_qty" value="${savedData.po_qty !== undefined ? keRibuan(savedData.po_qty) : '0'}" oninput="formatDanHitung(this)"></td>
                             <td><input type="text" class="no_so_do" value="${savedData.no_so_do || '-'}"></td>
@@ -294,6 +306,141 @@
             }
         }
 
+        // --- BAGIAN UTAMA PERBAIKAN LOGIKA SIMPAN ANTI BENTROK DATA IDENTIK ---
+        async function simpanKeLabaKotor() {
+            const semuaBaris = document.querySelectorAll('#bodyTabel tr');
+            if (semuaBaris.length === 0 || (semuaBaris.length === 1 && semuaBaris[0].querySelectorAll('input').length === 0)) {
+                alert("Tidak ada data yang bisa disimpan.");
+                return;
+            }
+
+            const btnSimpan = document.querySelector('.btn-simpan');
+            const teksAwal = btnSimpan.innerText;
+            btnSimpan.innerText = "⏳ Menyimpan Berurutan...";
+            btnSimpan.disabled = true;
+
+            let sukses = 0;
+            let gagal = 0;
+
+            // Menggunakan loop sinkronos (for...of + await) agar tidak memborbardir server secara bersamaan
+            for (const row of semuaBaris) {
+                try {
+                    // Reset indikator warna error jika ada dari sesi sebelumnya
+                    row.style.outline = "none";
+
+                    let idData = row.getAttribute('data-id');
+                    const urutanBarisIni = parseInt(row.getAttribute('data-urutan')) || 1;
+
+                    const tgl = row.querySelector('.tanggal').value || new Date().toISOString().split('T')[0];
+                    const poQty = bersihkanAngka(row.querySelector('.po_qty').value);
+                    const noSoDo = row.querySelector('.no_so_do').value || '-';
+                    const tujuan = row.querySelector('.tujuan').value || '';
+                    const qty = bersihkanAngka(row.querySelector('.qty').value);
+                    const beliHd = bersihkanAngka(row.querySelector('.beli_hd').value);
+                    const beliPbbkb = bersihkanAngka(row.querySelector('.beli_pbbkb').value);
+                    const beliPph = bersihkanAngka(row.querySelector('.beli_pph').value);
+                    const hargaJual = bersihkanAngka(row.querySelector('.harga_jual').value);
+                    const oat = bersihkanAngka(row.querySelector('.oat').value);
+                    const byLain = bersihkanAngka(row.querySelector('.by_lain').value);
+
+                    const payload = {
+                        tanggal: tgl,
+                        po_qty: poQty,
+                        no_so_do: noSoDo,
+                        tujuan: tujuan,
+                        qty: qty,
+                        beli_hd: beliHd,
+                        beli_pbbkb: beliPbbkb,
+                        beli_pph: beliPph,
+                        harga_jual: hargaJual,
+                        oat: oat,
+                        by_lain: byLain
+                    };
+
+                    let isOk = false;
+
+                    // JALUR 1: Jika baris tabel sudah tahu ID Supabase-nya, langsung PATCH
+                    if (idData && idData !== "null" && idData !== "") {
+                        const res = await fetch(`${SB_URL}/rest/v1/laba_kotor?id=eq.${idData}`, {
+                            method: 'PATCH',
+                            headers: {
+                                'apikey': SB_KEY,
+                                'Authorization': `Bearer ${SB_KEY}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        isOk = res.ok;
+                    } else {
+                        // JALUR 2: Jika ID kosong (Data baru / belum tersimpan di browser)
+                        // Kita ambil semua data pembanding di database berdasarkan kombinasi Tanggal, Tujuan, Qty
+                        const checkRes = await fetch(`${SB_URL}/rest/v1/laba_kotor?tanggal=eq.${tgl}&tujuan=eq.${tujuan}&qty=eq.${qty}&order=id.asc`, {
+                            method: 'GET',
+                            headers: {
+                                'apikey': SB_KEY,
+                                'Authorization': `Bearer ${SB_KEY}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        if (checkRes.ok) {
+                            const existingRecords = await checkRes.json();
+                            
+                            // Jika database mendeteksi data kembar ke-N sudah ada, kita update ID spesifik urutan tersebut
+                            if (existingRecords && existingRecords.length >= urutanBarisIni) {
+                                const targetRecord = existingRecords[urutanBarisIni - 1];
+                                const updateRes = await fetch(`${SB_URL}/rest/v1/laba_kotor?id=eq.${targetRecord.id}`, {
+                                    method: 'PATCH',
+                                    headers: {
+                                        'apikey': SB_KEY,
+                                        'Authorization': `Bearer ${SB_KEY}`,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(payload)
+                                });
+                                isOk = updateRes.ok;
+                            } else {
+                                // Jika benar-benar belum ada data di urutan ini, barulah kita INSERT baru (POST)
+                                const insertRes = await fetch(`${SB_URL}/rest/v1/laba_kotor`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'apikey': SB_KEY,
+                                        'Authorization': `Bearer ${SB_KEY}`,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(payload)
+                                });
+                                isOk = insertRes.ok;
+                            }
+                        }
+                    }
+
+                    if (isOk) {
+                        sukses++;
+                    } else {
+                        gagal++;
+                        row.style.outline = "2px solid red"; // Menandai baris bermasalah
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    gagal++;
+                    row.style.outline = "2px solid red";
+                }
+            }
+
+            btnSimpan.innerText = teksAwal;
+            btnSimpan.disabled = false;
+
+            if (gagal > 0) {
+                alert(`Selesai pengiriman data.\nBerhasil: ${sukses} baris.\nGagal: ${gagal} baris.\n\nCatatan: Baris data yang gagal ditandai dengan garis merah.`);
+            } else {
+                alert(`Luar biasa! Seluruh ${sukses} baris data (termasuk data kembar identik) berhasil disimpan tanpa ada yang gagal.`);
+            }
+
+            await ambilDataSupabase(); 
+        }
+
         function warnaiUlangBaris() {
             const semuaBaris = document.querySelectorAll('#bodyTabel tr');
             let warnaIndex = 0;
@@ -322,20 +469,16 @@
             if (input.value !== "") {
                 input.value = keRibuan(angkaMurni);
             }
-            
             if (input.classList.contains('beli_pbbkb') || input.classList.contains('beli_pph')) {
                 input.dataset.userEdited = "true";
             }
-
             if (input.classList.contains('beli_hd')) {
                 let row = input.closest('tr');
                 let pbbkb = row.querySelector('.beli_pbbkb');
                 let pph = row.querySelector('.beli_pph');
-                
                 if (pbbkb && pbbkb.value !== "0") pbbkb.removeAttribute('data-user-edited');
                 if (pph && pph.value !== "0") pph.removeAttribute('data-user-edited');
             }
-            
             hitungLogikaTabel(input);
         }
 
@@ -445,88 +588,6 @@
             document.getElementById('gtTotalByLain').value = keRibuan(gtByLain);
             document.getElementById('gtKbPpn').value = keRibuan(gtKbPpn);
             document.getElementById('gtLabaKotor').value = keRibuan(gtLaba);
-        }
-
-        async function simpanKeLabaKotor() {
-            const semuaBaris = document.querySelectorAll('#bodyTabel tr');
-            if (semuaBaris.length === 0 || (semuaBaris.length === 1 && semuaBaris[0].querySelectorAll('input').length === 0)) {
-                alert("Tidak ada data yang bisa disimpan.");
-                return;
-            }
-
-            const promises = [];
-
-            semuaBaris.forEach(row => {
-                const idData = row.getAttribute('data-id');
-                const tgl = row.querySelector('.tanggal').value || new Date().toISOString().split('T')[0];
-                const poQty = bersihkanAngka(row.querySelector('.po_qty').value);
-                const noSoDo = row.querySelector('.no_so_do').value || '-';
-                const tujuan = row.querySelector('.tujuan').value || '';
-                const qty = bersihkanAngka(row.querySelector('.qty').value);
-                const beliHd = bersihkanAngka(row.querySelector('.beli_hd').value);
-                const beliPbbkb = bersihkanAngka(row.querySelector('.beli_pbbkb').value);
-                const beliPph = bersihkanAngka(row.querySelector('.beli_pph').value);
-                const hargaJual = bersihkanAngka(row.querySelector('.harga_jual').value);
-                const oat = bersihkanAngka(row.querySelector('.oat').value);
-                const byLain = bersihkanAngka(row.querySelector('.by_lain').value);
-
-                const payload = {
-                    tanggal: tgl,
-                    po_qty: poQty,
-                    no_so_do: noSoDo,
-                    tujuan: tujuan,
-                    qty: qty,
-                    beli_hd: beliHd,
-                    beli_pbbkb: beliPbbkb,
-                    beli_pph: beliPph,
-                    harga_jual: hargaJual,
-                    oat: oat,
-                    by_lain: byLain
-                };
-
-                let fetchPromise;
-                if (idData && idData !== "null" && idData !== "") {
-                    fetchPromise = fetch(`${SB_URL}/rest/v1/laba_kotor?id=eq.${idData}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'apikey': SB_KEY,
-                            'Authorization': `Bearer ${SB_KEY}`,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=representation'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                } else {
-                    fetchPromise = fetch(`${SB_URL}/rest/v1/laba_kotor`, {
-                        method: 'POST',
-                        headers: {
-                            'apikey': SB_KEY,
-                            'Authorization': `Bearer ${SB_KEY}`,
-                            'Content-Type': 'application/json',
-                            'Prefer': 'return=representation'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                }
-
-                promises.push(fetchPromise.then(res => res.ok).catch(() => false));
-            });
-
-            try {
-                const hasilSesi = await Promise.all(promises);
-                const sukses = hasilSesi.filter(h => h === true).length;
-                const gagal = hasilSesi.filter(h => h === false).length;
-
-                if (gagal > 0) {
-                    alert(`Proses selesai. Berhasil menyimpan ${sukses} baris, gagal ${gagal} baris.`);
-                } else {
-                    alert(`Berhasil menyimpan total ${sukses} baris data ke Supabase.`);
-                }
-            } catch (err) {
-                alert("Terjadi kendala saat menyimpan data.");
-            }
-
-            await ambilDataSupabase(); 
         }
 
         function exportKeExcel() {
