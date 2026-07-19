@@ -172,7 +172,6 @@
     </table>
 
     <script>
-        // Memperbaiki validitas string Key yang sebelumnya terpotong typo huruf 'M' / korup
         const SUPABASE_URL = 'https://ntaectphgoelmhzrkatp.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50YWVjdHBoZ29lbG1oenJrYXRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzExNDYsImV4cCI6MjA4ODE0NzE0Nn0.-8E98wpkzHBARRhW6PKhBtf2XKhWFjq7idAzw9jlcKg';
         const supabaseLama = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -217,7 +216,7 @@
 
                 if (errorDP) throw errorDP;
 
-                // 2. Ambil data purchase_orders dengan kolom tujuan
+                // 2. Ambil data purchase_orders
                 const { data: dataPO, error: errorPO } = await supabaseLama
                     .from('purchase_orders')
                     .select('tgl_po, qty, tujuan, id')
@@ -239,7 +238,7 @@
 
                 if (errorLK) throw errorLK;
 
-                // Kelompokkan objek PO ke dalam array murni berdasarkan Tanggal (tgl_po)
+                // Kelompokkan objek PO berdasarkan Tanggal
                 const mapPO = {};
                 if (dataPO) {
                     dataPO.forEach(po => {
@@ -273,14 +272,15 @@
                     return;
                 }
 
+                // PETA DATA: Kelompokkan data laba_kotor murni berdasarkan tanggal & index keberapa munculnya
                 const mapLabaKotor = {};
                 const counterSaved = {};
                 if (dataLabaKotor) {
                     dataLabaKotor.forEach(lk => {
-                        const baseKey = `${lk.tanggal}_${lk.tujuan}_${lk.qty}`;
-                        if (!counterSaved[baseKey]) counterSaved[baseKey] = 0;
-                        counterSaved[baseKey]++;
-                        const uniqueKey = `${baseKey}_${counterSaved[baseKey]}`;
+                        const tglKey = lk.tanggal;
+                        if (!counterSaved[tglKey]) counterSaved[tglKey] = 0;
+                        counterSaved[tglKey]++;
+                        const uniqueKey = `${tglKey}_row_${counterSaved[tglKey]}`;
                         mapLabaKotor[uniqueKey] = lk;
                     });
                 }
@@ -293,19 +293,18 @@
                     const totalBarisHariIni = Math.max(listPengirimanHariIni.length, listPoHariIni.length);
 
                     for (let i = 0; i < totalBarisHariIni; i++) {
-                        const item = listPengirimanHariIni[i] || { tanggal: tgl, delivery_to: '', jumlah_keluar: 0 };
-                        const baseKeyMatch = `${item.tanggal}_${item.delivery_to}_${item.jumlah_keluar}`;
+                        if (!counterCurrent[tgl]) counterCurrent[tgl] = 0;
+                        counterCurrent[tgl]++;
                         
-                        if (!counterCurrent[baseKeyMatch]) counterCurrent[baseKeyMatch] = 0;
-                        counterCurrent[baseKeyMatch]++;
-                        
-                        const urutanBarisIni = counterCurrent[baseKeyMatch];
-                        const uniqueKeyMatch = `${baseKeyMatch}_${urutanBarisIni}`;
+                        const urutanBarisIni = counterCurrent[tgl];
+                        const uniqueKeyMatch = `${tgl}_row_${urutanBarisIni}`;
                         const savedData = mapLabaKotor[uniqueKeyMatch] || {};
 
-                        // Sinkronisasi data dari kolom tujuan purchase_orders ke input tujuan_po
+                        const item = listPengirimanHariIni[i] || { tanggal: tgl, delivery_to: '', jumlah_keluar: 0 };
+
+                        // Mengambil nilai PO
                         let nilaiPoQtyInput = 0;
-                        let nilaiTujuanPoInput = savedData.no_so_do || '-'; // Di simpan di kolom no_so_do database baru
+                        let nilaiTujuanPoInput = savedData.no_so_do || '-';
 
                         if (listPoHariIni[i] !== undefined) {
                             nilaiPoQtyInput = listPoHariIni[i].qty;
@@ -323,11 +322,11 @@
 
                         let rowHtml = `
                             <tr data-id="${savedData.id || ''}" data-urutan="${urutanBarisIni}">
-                                <td><input type="text" class="tanggal" value="${item.tanggal || ''}" onchange="warnaiUlangBaris()"></td>
+                                <td><input type="text" class="tanggal" value="${item.tanggal || tgl}" onchange="warnaiUlangBaris()"></td>
                                 <td><input type="text" class="po_qty" value="${keRibuan(nilaiPoQtyInput)}" oninput="formatDanHitung(this)"></td>
                                 <td><input type="text" class="no_so_do" value="${nilaiTujuanPoInput}"></td>
-                                <td><input type="text" class="tujuan" value="${item.delivery_to || ''}"></td>
-                                <td><input type="text" class="qty" value="${keRibuan(item.jumlah_keluar || 0)}" oninput="formatDanHitung(this)"></td>
+                                <td><input type="text" class="tujuan" value="${savedData.tujuan || item.delivery_to || ''}"></td>
+                                <td><input type="text" class="qty" value="${keRibuan(savedData.qty || item.jumlah_keluar || 0)}" oninput="formatDanHitung(this)"></td>
                                 
                                 <td><input type="text" class="beli_hd" value="${savedData.beli_hd !== undefined ? keRibuan(savedData.beli_hd) : '0'}" oninput="formatDanHitung(this)"></td>
                                 <td><input type="text" class="beli_ppn" readonly></td>
@@ -379,78 +378,59 @@
             btnSimpan.innerText = "⏳ Menyimpan...";
             btnSimpan.disabled = true;
 
-            let sukses = 0;
+            const payloadBulk = [];
 
             for (const row of semuaBaris) {
-                try {
-                    let idData = row.getAttribute('data-id');
-                    const urutanBarisIni = parseInt(row.getAttribute('data-urutan')) || 1;
+                let idData = row.getAttribute('data-id');
+                const tgl = row.querySelector('.tanggal').value || new Date().toISOString().split('T')[0];
+                const poQty = bersihkanAngka(row.querySelector('.po_qty').value);
+                const noSoDo = row.querySelector('.no_so_do').value || '-';
+                const tujuan = row.querySelector('.tujuan').value || '';
+                const qty = bersihkanAngka(row.querySelector('.qty').value);
+                const beliHd = bersihkanAngka(row.querySelector('.beli_hd').value);
+                const beliPbbkb = bersihkanAngka(row.querySelector('.beli_pbbkb').value);
+                const beliPph = bersihkanAngka(row.querySelector('.beli_pph').value);
+                const hargaJual = bersihkanAngka(row.querySelector('.harga_jual').value);
+                const oat = bersihkanAngka(row.querySelector('.oat').value);
+                const byLain = bersihkanAngka(row.querySelector('.by_lain').value);
 
-                    const tgl = row.querySelector('.tanggal').value || new Date().toISOString().split('T')[0];
-                    const poQty = bersihkanAngka(row.querySelector('.po_qty').value);
-                    const noSoDo = row.querySelector('.no_so_do').value || '-';
-                    const tujuan = row.querySelector('.tujuan').value || '';
-                    const qty = bersihkanAngka(row.querySelector('.qty').value);
-                    const beliHd = bersihkanAngka(row.querySelector('.beli_hd').value);
-                    const beliPbbkb = bersihkanAngka(row.querySelector('.beli_pbbkb').value);
-                    const beliPph = bersihkanAngka(row.querySelector('.beli_pph').value);
-                    const hargaJual = bersihkanAngka(row.querySelector('.harga_jual').value);
-                    const oat = bersihkanAngka(row.querySelector('.oat').value);
-                    const byLain = bersihkanAngka(row.querySelector('.by_lain').value);
+                const payload = {
+                    tanggal: tgl,
+                    po_qty: poQty,
+                    no_so_do: noSoDo, 
+                    tujuan: tujuan,
+                    qty: qty,
+                    beli_hd: beliHd,
+                    beli_pbbkb: beliPbbkb,
+                    beli_pph: beliPph,
+                    harga_jual: hargaJual,
+                    oat: oat,
+                    by_lain: byLain
+                };
 
-                    const payload = {
-                        tanggal: tgl,
-                        po_qty: poQty,
-                        no_so_do: noSoDo, 
-                        tujuan: tujuan,
-                        qty: qty,
-                        beli_hd: beliHd,
-                        beli_pbbkb: beliPbbkb,
-                        beli_pph: beliPph,
-                        harga_jual: hargaJual,
-                        oat: oat,
-                        by_lain: byLain
-                    };
-
-                    if (idData && idData !== "null" && idData !== "") {
-                        const { error } = await supabaseBaru
-                            .from('laba_kotor')
-                            .update(payload)
-                            .eq('id', idData);
-                        if(!error) sukses++;
-                    } else {
-                        const { data: records, error: errCheck } = await supabaseBaru
-                            .from('laba_kotor')
-                            .select('id')
-                            .eq('tanggal', tgl)
-                            .eq('tujuan', tujuan)
-                            .eq('qty', qty)
-                            .order('id', { ascending: true });
-
-                        if (!errCheck && records && records.length >= urutanBarisIni) {
-                            const targetId = records[urutanBarisIni - 1].id;
-                            const { error } = await supabaseBaru
-                                .from('laba_kotor')
-                                .update(payload)
-                                .eq('id', targetId);
-                            if(!error) sukses++;
-                        } else {
-                            const { error } = await supabaseBaru
-                                .from('laba_kotor')
-                                .insert([payload]);
-                            if(!error) sukses++;
-                        }
-                    }
-                } catch (err) {
-                    console.error(err);
+                if (idData && idData !== "null" && idData !== "") {
+                    payload.id = parseInt(idData);
                 }
+
+                payloadBulk.push(payload);
             }
 
-            btnSimpan.innerText = teksAwal;
-            btnSimpan.disabled = false;
+            try {
+                const { error } = await supabaseBaru
+                    .from('laba_kotor')
+                    .upsert(payloadBulk, { onConflict: 'id' });
 
-            alert(`Proses penyimpanan selesai. Sinkronisasi database berhasil diperbarui.`);
-            await ambilDataSupabase(); 
+                if (error) throw error;
+                
+                alert(`Proses penyimpanan berhasil! Data diperbarui secara instan.`);
+            } catch (err) {
+                console.error(err);
+                alert('Gagal menyimpan data: ' + err.message);
+            } finally {
+                btnSimpan.innerText = teksAwal;
+                btnSimpan.disabled = false;
+                await ambilDataSupabase(); 
+            }
         }
 
         function warnaiUlangBaris() {
@@ -642,4 +622,4 @@
     </script>
 
 </body>
-</html>
+</html
