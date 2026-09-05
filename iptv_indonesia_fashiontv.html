@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IPTV Indonesia</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0f14;color:#eee;font-family:Arial,sans-serif}
+html,body{height:100%;overflow:hidden}body{margin:0;background:#0b0f14;color:#eee;font-family:Arial,sans-serif}
+header{height:64px;padding:8px 12px;background:#111820;position:relative;z-index:5}.top{display:flex;align-items:center;gap:10px;height:100%}
+h1{margin:0;font-size:18px;white-space:nowrap}.bar{display:flex;gap:6px;flex:1;min-width:0}
+input,button,select{border:0;border-radius:7px;padding:8px 10px;font-size:13px}input{background:#202a34;color:#fff;flex:1;min-width:100px}button,select{background:#2b3744;color:#fff;cursor:pointer}
+.layout{height:calc(100vh - 64px);display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:10px;padding:10px}
+.player{background:#000;border-radius:10px;overflow:hidden;height:calc(100vh - 104px)}video{width:100%;height:100%;display:block;object-fit:contain}
+.status{height:28px;padding:5px 2px;color:#9aa8b5;font-size:11px}.list{background:#111820;border-radius:10px;padding:7px;overflow:auto;height:calc(100vh - 84px)}
+.channel{display:flex;align-items:center;gap:8px;padding:7px;border-radius:7px;cursor:pointer;margin-bottom:3px}.channel:hover,.channel.active{background:#263341}
+.logo{width:30px;height:30px;border-radius:6px;object-fit:contain;background:#fff}.name{font-size:12px;line-height:1.2}.group{color:#8796a5;font-size:10px;margin-left:auto;white-space:nowrap}.empty{padding:20px;color:#9aa8b5;text-align:center;font-size:12px}
+@media(max-width:800px){html,body{overflow:auto}.top{flex-wrap:wrap;height:auto}header{height:auto;min-height:58px}.layout{height:auto;display:flex;flex-direction:column;padding:7px}.player{height:auto;aspect-ratio:16/9}.list{height:calc(100vh - 400px);min-height:220px}.status{height:24px}.group{display:none}}
+
+</style>
+</head>
+<body>
+<header><div style="font-size:11px;opacity:.78;margin-top:2px">Fashion TV ditambahkan sebagai stream publik terpisah.</div>
+<div class="top"><h1>📺 IPTV</h1><div class="bar"><select id="source"><option value="id">🇮🇩 Indonesia</option><option value="sea">🌏 Asia Tenggara</option><option value="sports">⚽ Sports publik</option><option value="all">🌐 Semua publik</option></select><input id="search" placeholder="Cari channel..."><button onclick="loadPlaylist()">↻</button><button onclick="fullscreen()">⛶</button></div></div>
+</header>
+<div class="layout">
+<section>
+<div class="player"><video id="video" controls playsinline></video></div>
+<div id="status" class="status">Memuat playlist publik...</div>
+</section>
+<aside class="list" id="list"><div class="empty">Memuat channel...</div></aside>
+</div>
+
+
+<script>
+/* Extra public channel: Fashion TV */
+window.EXTRA_CHANNELS = [{
+  name: "Fashion TV",
+  logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Fashion_TV_logo.svg/512px-Fashion_TV_logo.svg.png",
+  group: "Fashion",
+  url: "https://fash1043.cloudycdn.services/slive/ftv_ftv_asia_ada_xiv_42149_default_137_hls.smil/playlist.m3u8"
+}];
+</script>
+
+<script>
+const SOURCES={id:["https://iptv-org.github.io/iptv/countries/id.m3u"],sea:["https://iptv-org.github.io/iptv/regions/sea.m3u"],sports:["https://iptv-org.github.io/iptv/categories/sports.m3u"],all:["https://iptv-org.github.io/iptv/countries/id.m3u","https://iptv-org.github.io/iptv/regions/sea.m3u","https://iptv-org.github.io/iptv/categories/sports.m3u"]};
+const video = document.getElementById("video");
+const list = document.getElementById("list");
+const statusEl = document.getElementById("status");
+const search = document.getElementById("search");
+let channels=[], hls=null;
+
+function parseM3U(text){
+  const lines=text.split(/\r?\n/), out=[];
+  let meta=null;
+  for(const line of lines){
+    const s=line.trim();
+    if(s.startsWith("#EXTINF:")){
+      meta=s;
+    } else if(s && !s.startsWith("#") && meta){
+      const name=(meta.split(",").slice(1).join(",").trim())||"Unknown";
+      const logo=(meta.match(/tvg-logo="([^"]*)"/)||[])[1]||"";
+      const group=(meta.match(/group-title="([^"]*)"/)||[])[1]||"TV";
+      out.push({name,url:s,logo,group});
+      meta=null;
+    }
+  }
+  return out;
+}
+
+function render(){
+  const q=search.value.toLowerCase().trim();
+  const data=channels.filter(c=>c.name.toLowerCase().includes(q)||c.group.toLowerCase().includes(q));
+  list.innerHTML="";
+  if(!data.length){list.innerHTML='<div class="empty">Channel tidak ditemukan.</div>';return}
+  const frag=document.createDocumentFragment();
+  data.forEach(c=>{
+    const el=document.createElement("div"); el.className="channel";
+    el.innerHTML=`<img class="logo" src="${escapeAttr(c.logo)}" onerror="this.style.visibility='hidden'">
+      <span class="name">${escapeHtml(c.name)}</span><span class="group">${escapeHtml(c.group)}</span>`;
+    el.onclick=()=>play(c,el); frag.appendChild(el);
+  });
+  list.appendChild(frag);
+}
+
+function play(c,el){
+  document.querySelectorAll(".channel").forEach(x=>x.classList.remove("active"));
+  el.classList.add("active"); statusEl.textContent="▶ "+c.name;
+  if(hls){hls.destroy();hls=null}
+  video.removeAttribute("src"); video.load();
+  if(video.canPlayType("application/vnd.apple.mpegurl")) {
+    video.src=c.url; video.play().catch(()=>{});
+  } else if(Hls.isSupported()){
+    hls=new Hls({enableWorker:true});
+    hls.loadSource(c.url); hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED,()=>video.play().catch(()=>{}));
+    hls.on(Hls.Events.ERROR,(e,d)=>{
+      if(d.fatal) statusEl.textContent="⚠ Stream gagal dimuat. Channel mungkin offline atau dibatasi server.";
+    });
+  } else statusEl.textContent="Browser tidak mendukung HLS.";
+}
+
+async function loadPlaylist(){
+  statusEl.textContent="Mengambil playlist...";
+  try{
+    const urls=SOURCES[document.getElementById("source").value];
+    const texts=await Promise.all(urls.map(async u=>{const r=await fetch(u,{cache:"no-store"});if(!r.ok)throw new Error(r.status);return r.text()}));
+    const seen=new Set(); channels=[];
+    texts.flatMap(parseM3U).forEach(c=>{const k=c.name.toLowerCase()+"|"+c.url;if(!seen.has(k)){seen.add(k);channels.push(c)}});
+    render();
+    statusEl.textContent=`${channels.length} channel publik dimuat.`;
+  }catch(e){
+    list.innerHTML='<div class="empty">Gagal mengambil playlist. Coba buka lewat hosting HTTPS atau jalankan dengan web server lokal.</div>';
+    statusEl.textContent="Gagal memuat playlist.";
+  }
+}
+search.addEventListener("input",render); document.getElementById("source").addEventListener("change",loadPlaylist);
+function fullscreen(){document.querySelector(".player").requestFullscreen?.()}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function escapeAttr(s){return escapeHtml(s)}
+loadPlaylist();
+</script>
+</body>
+</html>
